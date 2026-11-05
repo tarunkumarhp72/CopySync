@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     CLIPBOARD_SIZE_LIMIT_BYTES: int
     MAX_IMAGE_UPLOAD_BYTES: int
     UPLOAD_DIR: str
+    STORAGE_BACKEND: Literal["supabase", "local"] = "supabase"
+    SUPABASE_STORAGE_URL: str = "https://wxbiyvzyzxvipaupvfkc.supabase.co"
+    SUPABASE_STORAGE_BUCKET: str = "CopySync-Bucket"
+    SUPABASE_STORAGE_KEY: str = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4Yml5dnp5enh2aXBhdXB2ZmtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM4MDkwNzIsImV4cCI6MjEwOTM4NTA3Mn0.Mq5ucgdWFJulxZqr6_uLVIiaGO3PEQAvcBtumSOvVjw"
+    )
     MAX_NOTE_HTML_BYTES: int
     ACCOUNT_NOTE_LIMIT: int
     GUEST_NOTE_LIMIT: int

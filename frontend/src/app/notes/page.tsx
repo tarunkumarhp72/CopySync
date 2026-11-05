@@ -3,8 +3,33 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NotesWorkspace } from "@/features/notes/NotesWorkspace";
-import { ShieldAlert, QrCode, LogIn, ArrowLeft, Loader2 } from "lucide-react";
+import { ShieldCheck, QrCode, LogIn, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring" as const,
+      stiffness: 280,
+      damping: 24,
+      staggerChildren: 0.08,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 300, damping: 25 },
+  },
+};
 
 export default function NotesPage() {
   const [tokenReady, setTokenReady] = useState(false);
@@ -57,7 +82,13 @@ export default function NotesPage() {
   if (!tokenReady) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
-        <Loader2 size={32} className="animate-spin text-accent" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+        >
+          <Loader2 size={32} className="animate-spin text-accent" />
+        </motion.div>
       </div>
     );
   }
@@ -65,66 +96,92 @@ export default function NotesPage() {
   // Route Security: Guard against unauthenticated access
   if (!hasAccess) {
     return (
-      <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6">
+      <main className="min-h-screen bg-background relative overflow-hidden flex flex-col items-center justify-center p-4 sm:p-6">
+        {/* Soft Ambient Background Glow */}
+        <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 size-96 rounded-full bg-accent/5 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-40 left-1/2 -translate-x-1/2 size-96 rounded-full bg-emerald-500/5 blur-3xl" />
+
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm text-center"
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative w-full max-w-md rounded-2xl border border-border/80 bg-card/90 backdrop-blur-md p-6 sm:p-8 shadow-sm text-center"
         >
-          <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-amber-50 text-amber-700 border border-amber-200/80 mb-4">
-            <ShieldAlert size={24} />
-          </div>
+          <motion.div variants={itemVariants} className="mx-auto mb-4 flex justify-center">
+            <div className="relative">
+              <div className="grid size-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs">
+                <ShieldCheck size={28} />
+              </div>
+              <motion.span
+                animate={{ scale: [1, 1.25, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-1 -right-1 size-3.5 rounded-full bg-accent border-2 border-white"
+              />
+            </div>
+          </motion.div>
 
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            Session Required
-          </h1>
-          <p className="mt-2 text-xs sm:text-sm text-muted leading-relaxed">
-            To view or sync notes, connect with your phone via QR code or sign in to your permanent account.
-          </p>
+          <motion.div variants={itemVariants}>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background px-2.5 py-0.5 text-[11px] font-medium text-muted mb-2">
+              <Sparkles size={11} className="text-accent" />
+              <span>CopySync Security</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+              Workspace Access Required
+            </h1>
+            <p className="mt-2 text-xs sm:text-sm text-muted leading-relaxed">
+              Pair directly with your phone camera via QR code or sign in to synchronize notes in real time.
+            </p>
+          </motion.div>
 
-          <div className="mt-6 flex flex-col gap-2.5">
-            <Link
-              href="/guest"
-              className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs sm:text-sm font-medium text-white shadow-xs hover:opacity-95 transition"
-            >
-              <QrCode size={16} />
-              <span>Scan QR with Phone (Guest)</span>
-            </Link>
+          <motion.div variants={itemVariants} className="mt-6 flex flex-col gap-2.5">
+            <motion.div whileHover={{ scale: 1.015, y: -1 }} whileTap={{ scale: 0.985 }}>
+              <Link
+                href="/guest"
+                className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs sm:text-sm font-medium text-white shadow-xs hover:bg-accent/95 transition w-full"
+              >
+                <QrCode size={16} />
+                <span>Pair Phone via QR Code (Guest)</span>
+              </Link>
+            </motion.div>
 
-            <Link
-              href="/login"
-              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-xs sm:text-sm font-medium text-foreground hover:bg-cream/50 transition shadow-2xs"
-            >
-              <LogIn size={16} />
-              <span>Sign in with Google</span>
-            </Link>
+            <motion.div whileHover={{ scale: 1.015, y: -1 }} whileTap={{ scale: 0.985 }}>
+              <Link
+                href="/login"
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-xs sm:text-sm font-medium text-foreground hover:bg-cream/50 transition shadow-2xs w-full"
+              >
+                <LogIn size={16} />
+                <span>Sign in with Google</span>
+              </Link>
+            </motion.div>
 
-            <button
+            <motion.button
               type="button"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.985 }}
               onClick={() => void createQuickGuestWorkspace()}
               disabled={isInitializingGuest}
-              className="mt-1 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2 text-xs text-muted hover:text-foreground transition disabled:opacity-50"
+              className="mt-1 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2 text-xs font-medium text-muted hover:text-foreground hover:bg-cream/30 transition disabled:opacity-50"
             >
               {isInitializingGuest ? (
                 <>
                   <Loader2 size={13} className="animate-spin text-accent" />
-                  <span>Setting up guest workspace...</span>
+                  <span>Setting up temporary workspace...</span>
                 </>
               ) : (
                 <span>Open Instant Temporary Workspace</span>
               )}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
-          <div className="mt-6 pt-4 border-t border-border/80">
+          <motion.div variants={itemVariants} className="mt-6 pt-4 border-t border-border/80">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition"
+              className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition group"
             >
-              <ArrowLeft size={13} />
+              <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />
               <span>Return to Home</span>
             </Link>
-          </div>
+          </motion.div>
         </motion.div>
       </main>
     );

@@ -139,14 +139,17 @@ export function ProfessionalQRCode({
               exit={{ opacity: 0, scale: 0.9 }}
               className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[2px] p-4 text-center z-20"
             >
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 350, damping: 22 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleReload();
                 }}
                 disabled={isRefreshing}
-                className="group/btn relative flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-md transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-lg disabled:opacity-60"
+                className="group/btn relative flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-md hover:shadow-lg disabled:opacity-60 cursor-pointer"
                 aria-label="Reload QR code"
               >
                 <RefreshCw
@@ -155,7 +158,7 @@ export function ProfessionalQRCode({
                     isRefreshing ? "animate-spin" : "group-hover/btn:rotate-180"
                   }`}
                 />
-              </button>
+              </motion.button>
 
               <p className="mt-3 text-xs font-semibold text-foreground">
                 QR code expired

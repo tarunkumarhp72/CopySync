@@ -20,7 +20,11 @@ export default function LoginPage() {
     let alive = true;
     const check = async () => {
       try {
-        const res = await fetch(`${api}/auth/me`, { credentials: "include" });
+        const token = typeof window !== "undefined" ? localStorage.getItem("copysync_token") : null;
+        const res = await fetch(`${api}/auth/me`, {
+          credentials: "include",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (res.ok && alive) {
           router.replace("/dashboard");
           return;
@@ -74,7 +78,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative mx-auto flex w-full max-w-6xl items-center justify-between gap-4"
+        className="relative mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-1"
       >
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-foreground shrink-0">
           <span className="grid size-8 sm:size-9 place-items-center rounded-xl bg-accent text-white shadow-xs">
@@ -92,13 +96,13 @@ export default function LoginPage() {
       </motion.header>
 
       {/* Main Section: Responsive 2-column or single-column on mobile */}
-      <section className="relative mx-auto grid w-full max-w-6xl items-center gap-8 py-6 sm:py-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-12 min-w-0">
+      <section className="relative mx-auto grid w-full max-w-full lg:max-w-6xl items-center gap-8 py-4 sm:py-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-12 min-w-0">
         {/* Column A: Reassurance & Feature Information (Desktop Left, Mobile Below Login Card) */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="order-2 lg:order-1 w-full max-w-xl min-w-0"
+          className="order-2 lg:order-1 w-full max-w-xl min-w-0 px-1"
         >
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-white/70 px-3 py-1.5 text-xs font-medium text-accent shadow-2xs">
             <Sparkles size={14} /> Your space, always in sync
@@ -181,9 +185,9 @@ export default function LoginPage() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="order-1 lg:order-2 w-full max-w-md justify-self-center min-w-0"
+          className="order-1 lg:order-2 w-full max-w-md justify-self-center min-w-0 px-1"
         >
-          <SpotlightCard className="!px-4 !py-6 sm:!p-8 border-border bg-white sm:bg-white/95 sm:backdrop-blur-md shadow-[0_20px_50px_rgb(41_40_36_/_0.08)] w-full max-w-full">
+          <SpotlightCard className="!px-4 !py-6 sm:!p-8 border-border bg-white sm:bg-white/95 sm:backdrop-blur-md shadow-[0_20px_50px_rgb(41_40_36_/_0.08)] w-full max-w-full overflow-hidden box-border">
             <div className="grid size-11 place-items-center rounded-xl bg-cream text-accent shadow-2xs">
               <ShieldCheck size={22} />
             </div>

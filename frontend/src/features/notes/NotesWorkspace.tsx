@@ -105,9 +105,13 @@ export function NotesWorkspace() {
   const logout = async () => {
     try {
       await apiFetch<void>("/auth/logout", { method: "POST" });
+    } catch {
+      // ignore
+    } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("copysync_token");
+      }
       location.assign("/login");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not sign out.");
     }
   };
 

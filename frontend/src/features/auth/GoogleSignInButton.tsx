@@ -30,12 +30,13 @@ export function GoogleSignInButton() {
   const renderGoogleButton = useCallback(() => {
     if (!window.google || !mountRef.current || !clientIdRef.current) return;
 
-    // Measure actual available container width
+    // Measure actual available container width safely
     const parent = containerRef.current || mountRef.current.parentElement;
-    const availableWidth = parent ? Math.floor(parent.getBoundingClientRect().width) : 320;
+    const clientW = parent ? Math.floor(parent.clientWidth || parent.getBoundingClientRect().width) : 280;
 
-    // Google GSI strictly accepts an integer width between 200 and 400
-    const targetWidth = Math.min(380, Math.max(200, availableWidth));
+    // Google GSI strictly accepts an integer width between 200 and 400.
+    // We cap width to 320px on mobile to guarantee generous margins and zero clipping.
+    const targetWidth = Math.min(320, Math.max(200, clientW > 30 ? clientW - 16 : 280));
 
     // Avoid unnecessary re-renders if width hasn't meaningfully changed
     if (Math.abs(lastWidthRef.current - targetWidth) < 6 && mountRef.current.hasChildNodes()) {
@@ -51,10 +52,9 @@ export function GoogleSignInButton() {
       size: "large",
       type: "standard",
       shape: "rectangular",
-      // On narrower screens (< 310px), signin_with guarantees the Google logo is on the left
-      // so it never gets clipped even with a very long email address.
-      // On standard screens (>= 310px), continue_with renders smoothly with full space.
-      text: targetWidth >= 310 ? "continue_with" : "signin_with",
+      // Using 'signin_with' ensures the lengthy email string is never rendered inside the button,
+      // completely preventing the Google 'G' icon from being pushed or clipped on the right.
+      text: "signin_with",
       width: targetWidth,
       logo_alignment: "left",
     });
@@ -97,6 +97,10 @@ export function GoogleSignInButton() {
                     "Google sign-in could not be completed."
                 );
                 return;
+              }
+              const data = await response.json().catch(() => null);
+              if (data?.token && typeof window !== "undefined") {
+                localStorage.setItem("copysync_token", data.token);
               }
               window.location.assign("/dashboard");
             },

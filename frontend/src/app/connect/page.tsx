@@ -279,17 +279,25 @@ function ConnectContent() {
   };
 
   const handleDisconnect = async () => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "session.closed" }));
-      wsRef.current.close();
-      wsRef.current = null;
-    }
+    try {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "session.closed" }));
+      }
+    } catch {}
+
     if (sessionId && token) {
       await fetch(`${api}/guest/session/${sessionId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       }).catch(() => {});
+    }
+
+    if (wsRef.current) {
+      try {
+        wsRef.current.close();
+      } catch {}
+      wsRef.current = null;
     }
     setStatus("unavailable");
     setError("You ended this session.");
@@ -306,16 +314,17 @@ function ConnectContent() {
           <p className="mt-1.5 text-xs text-muted leading-relaxed">
             {error || "This pairing session has ended or expired."}
           </p>
-          <div className="mt-6 w-full space-y-2">
-            <Link
-              href="/guest"
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent text-white py-2.5 text-xs font-semibold shadow-xs hover:bg-accent/90 transition"
-            >
-              <span>Scan QR Code Again</span>
-            </Link>
+
+          {/* Reconnect Note */}
+          <div className="mt-4 w-full rounded-2xl border border-border/80 bg-cream/50 p-4 text-xs text-muted text-center leading-relaxed">
+            <span className="font-semibold text-foreground block mb-0.5">Want to reconnect?</span>
+            To connect again, please scan the QR code displayed on your laptop screen.
+          </div>
+
+          <div className="mt-5 w-full">
             <Link
               href="/"
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-white py-2.5 text-xs font-medium text-muted hover:text-foreground hover:bg-cream/50 transition"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent text-white py-2.5 text-xs font-semibold shadow-xs hover:bg-accent/90 transition"
             >
               <span>Return Home</span>
             </Link>

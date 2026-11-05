@@ -27,4 +27,10 @@ async def claim_guest_session(data: GuestClaim, db: AsyncSession = Depends(get_d
 
 @router.delete("/session/{session_id}", response_model=GuestSessionRead)
 async def close_guest_session(session_id: uuid.UUID, data: GuestClose, db: AsyncSession = Depends(get_db)) -> GuestSessionRead:
-    return await service.close_session(db, str(session_id), data.token)
+    session = await service.close_session(db, str(session_id), data.token)
+    from app.websocket.memory_manager import manager
+    await manager.broadcast(
+        f"guest:{session_id}",
+        {"type": "session.closed", "session_id": str(session_id), "by": "api"}
+    )
+    return session

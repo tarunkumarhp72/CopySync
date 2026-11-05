@@ -151,12 +151,10 @@ export function NotesWorkspace({
       try {
         const data = JSON.parse(event.data);
         if (data.type === "session.closed" || data.type === "session.receiver_left") {
-          const hasGuest =
-            isGuest ||
-            (typeof window !== "undefined" &&
-              Boolean(localStorage.getItem("copysync_guest_token") || localStorage.getItem("copysync_guest_session_id")));
+          const isUserLoggedIn =
+            typeof window !== "undefined" && Boolean(localStorage.getItem("copysync_token"));
 
-          if (hasGuest) {
+          if (!isUserLoggedIn) {
             const gToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
             if (gToken && api) {
               fetch(`${api}/guest-workspace`, {
@@ -178,6 +176,10 @@ export function NotesWorkspace({
           }
 
           setError("Mobile device disconnected. Pairing session has ended.");
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("copysync_guest_session_id");
+            localStorage.removeItem("copysync_guest_session_token");
+          }
           if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;

@@ -20,7 +20,12 @@ class InMemoryConnectionManager:
         for websocket in list(self.channels.get(channel, set())):
             if exclude and websocket is exclude:
                 continue
-            await websocket.send_json(event)
+            try:
+                await websocket.send_json(event)
+            except Exception:
+                self.channels[channel].discard(websocket)
+        if channel in self.channels and not self.channels[channel]:
+            self.channels.pop(channel, None)
 
     def role_in_use(self, channel: str, role: str) -> bool:
         return any(getattr(websocket.state, "guest_role", None) == role for websocket in self.channels.get(channel, set()))

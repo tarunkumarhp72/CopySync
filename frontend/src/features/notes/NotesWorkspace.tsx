@@ -247,7 +247,10 @@ export function NotesWorkspace({
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === "session.closed" || data.type === "session.receiver_left") {
+        if (
+          data.type === "session.receiver_left" ||
+          (data.type === "session.closed" && data.by !== "sender")
+        ) {
           handleSessionEnded();
           return;
         }

@@ -1,7 +1,9 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.modules.guest_sessions.models import GuestSession, SessionStatus
 
 from app.dependencies.database import get_db
 from app.modules.guest_sessions import service
@@ -37,13 +39,13 @@ async def close_guest_session(session_id: uuid.UUID, data: GuestClose, db: Async
 
 
 @router.get("/session/{session_id}")
-async def get_guest_session_status(session_id: uuid.UUID, token: str, db: AsyncSession = Depends(get_db)):
-    try:
-        session = await service.get_valid_session(db, str(session_id), token)
-        return {
-            "id": str(session.id),
-            "status": session.status,
-            "expires_at": session.expires_at.isoformat() if session.expires_at else None,
-        }
-    except Exception:
+async def get_guest_session_status(session_id: uuid.UUID, token: str = "", db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(GuestSession).where(GuestSession.id == str(session_id)))
+    session = result.scalar_one_or_none()
+    if not session:
         return {"id": str(session_id), "status": "closed"}
+    return {
+        "id": str(session.id),
+        "status": session.status,
+        "expires_at": session.expires_at.isoformat() if session.expires_at else None,
+    }

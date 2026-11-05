@@ -61,6 +61,7 @@ async def guest_websocket(websocket: WebSocket, session_id: str, token: str, rol
                 await websocket.send_json({"type": "error", "message": "Unsupported event"})
                 continue
             if event["type"] == "session.closed":
+                await manager.broadcast(channel, {"type": "session.closed", "session_id": session_id, "by": role, "timestamp": datetime.now(timezone.utc).isoformat()})
                 break
             if event["type"] == "clipboard.updated":
                 if not await limiter.hit(f"clipboard:{session_id}", 30, 60):
@@ -78,4 +79,5 @@ async def guest_websocket(websocket: WebSocket, session_id: str, token: str, rol
         pass
     finally:
         manager.disconnect(channel, websocket)
-        await manager.broadcast(channel, {"type": "session.closed", "session_id": session_id, "by": role, "timestamp": datetime.now(timezone.utc).isoformat()})
+        if role == "receiver":
+            await manager.broadcast(channel, {"type": "session.receiver_left", "session_id": session_id, "timestamp": datetime.now(timezone.utc).isoformat()})

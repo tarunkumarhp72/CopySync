@@ -4,15 +4,18 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Clipboard,
-  Eraser,
   LogOut,
   Check,
-  Smartphone,
-  ArrowDown,
-  ArrowUp,
-  Info,
-  ShieldCheck,
   Zap,
+  Bold,
+  Italic,
+  Heading,
+  List,
+  Code,
+  Quote,
+  Trash2,
+  Copy,
+  Info,
 } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -278,6 +281,25 @@ function ConnectContent() {
     sendClear();
   };
 
+  const applyFormat = (prefix: string, suffix: string = prefix, defaultPlaceholder: string = "") => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = content.substring(start, end) || defaultPlaceholder;
+    const replacement = `${prefix}${selected}${suffix}`;
+    const newContent = content.substring(0, start) + replacement + content.substring(end);
+
+    setContent(newContent);
+    handleContentChange(newContent);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    }, 10);
+  };
+
   const handleDisconnect = async () => {
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -335,83 +357,69 @@ function ConnectContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 w-full max-w-full overflow-x-hidden">
-      <div className="mx-auto w-full max-w-md flex-1 flex flex-col">
-        {/* Navigation / Header */}
-        <header className="flex items-center justify-between border-b border-border/80 pb-4">
-          <Link href="/" className="flex items-center gap-2 font-medium">
-            <span className="grid size-7 place-items-center rounded-lg bg-accent text-white shadow-xs">
-              <Clipboard size={15} strokeWidth={2.2} />
-            </span>
-            <span className="text-sm font-semibold tracking-tight">CopySync</span>
+    <div className="min-h-screen bg-[#FDFCFB] text-foreground flex flex-col justify-between w-full max-w-full overflow-x-hidden">
+      {/* 1. Sleek Minimalist Top Navbar */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/70 bg-white/95 px-4 backdrop-blur-md">
+        <div className="flex items-center gap-2.5">
+          <Link href="/" className="grid size-8 place-items-center rounded-xl bg-accent text-white shadow-2xs">
+            <Clipboard size={16} strokeWidth={2.2} />
           </Link>
-          <div className="flex items-center gap-1.5 text-xs">
-            <Smartphone size={13} className="text-muted" />
-            <span className="font-medium text-foreground">Mobile Connected</span>
-          </div>
-        </header>
-
-        {/* Status Banner */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <span
-                className={`size-2.5 rounded-full ${
-                  status === "connected"
-                    ? "bg-emerald-500 animate-pulse"
-                    : status === "connecting"
-                    ? "bg-amber-500 animate-spin"
-                    : "bg-red-500"
-                }`}
-              />
-              <span className="text-xs font-semibold text-foreground">
-                {status === "connected"
-                  ? "Connected to Computer"
-                  : status === "connecting"
-                  ? "Connecting..."
-                  : "Session Disconnected"}
-              </span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold tracking-tight text-foreground">CopySync</span>
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </div>
-            <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-              {status === "connected" ? "Live Real-Time" : "Waiting"}
+            <span className="text-[10px] font-medium text-emerald-700">
+              {syncStatus === "typing" ? "Syncing..." : syncStatus === "synced" ? "Synced to laptop" : "Live paired"}
             </span>
           </div>
         </div>
 
-        {/* 1-TAP PERMISSION REQUEST CARD FOR MOBILE */}
+        <div className="flex items-center gap-2">
+          {content && (
+            <span className="text-[10px] font-mono text-muted bg-cream/70 px-2 py-0.5 rounded-md">
+              {content.length} chars
+            </span>
+          )}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => void handleDisconnect()}
+            className="flex items-center gap-1 rounded-lg border border-red-200/80 bg-red-50/70 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100/70 active:scale-95 transition cursor-pointer"
+            title="Disconnect"
+          >
+            <LogOut size={12} />
+            <span>Disconnect</span>
+          </motion.button>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="mx-auto w-full max-w-lg flex-1 flex flex-col px-3 py-3">
+        {/* Permission Request Toast / Banner */}
         <AnimatePresence>
           {showPermissionPrompt && !permissionGranted && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              className="mt-4 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5 shadow-xs"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-3 overflow-hidden rounded-2xl border border-emerald-200/90 bg-emerald-50/80 p-3 text-xs text-emerald-950 flex items-center justify-between gap-3 shadow-2xs"
             >
-              <div className="flex items-start gap-3">
-                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-2xs">
-                  <ShieldCheck size={20} strokeWidth={2.2} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-xs sm:text-sm font-bold text-emerald-900">
-                    Allow Clipboard Permission
-                  </h4>
-                  <p className="mt-1 text-[11px] sm:text-xs text-emerald-800/80 leading-relaxed">
-                    Tap below to allow browser clipboard access. Copied text will transfer directly to your laptop!
-                  </p>
-                </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate text-[11px] font-medium text-emerald-900">
+                  Enable 1-tap phone clipboard pasting
+                </span>
               </div>
-
-              <div className="mt-3.5 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => void requestPermissionAndSync()}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 px-3 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 active:scale-[0.98] transition"
+                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-emerald-700 active:scale-95 transition"
                 >
-                  <Zap size={14} />
-                  <span>Allow & Sync Clipboard</span>
+                  Enable
                 </button>
                 <button
                   onClick={() => setShowPermissionPrompt(false)}
-                  className="rounded-xl border border-emerald-300 bg-white/80 py-2.5 px-3 text-xs font-medium text-emerald-800 hover:bg-white transition"
+                  className="rounded-lg px-2 py-1 text-[11px] text-emerald-800 hover:bg-emerald-100/60 transition"
                 >
                   Skip
                 </button>
@@ -420,62 +428,97 @@ function ConnectContent() {
           )}
         </AnimatePresence>
 
-        {/* Text Input / Editor Box */}
-        <div className="mt-4 flex-1 flex flex-col rounded-3xl border border-border bg-card p-4 sm:p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <span>Shared Clipboard Text</span>
-            </label>
-            <div className="flex items-center gap-2">
-              {syncStatus === "typing" && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
-                  <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Syncs in 2s
-                </span>
-              )}
-              {syncStatus === "synced" && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
-                  <Check size={11} strokeWidth={2.5} />
-                  Synced to Laptop
-                </span>
-              )}
-              {content && (
-                <span className="text-[11px] font-mono text-muted">
-                  {content.length} chars
-                </span>
-              )}
+        {/* 2. Modern Rich Text Card */}
+        <div className="flex-1 flex flex-col rounded-2xl border border-border/80 bg-white shadow-xs overflow-hidden">
+          {/* Quick Rich Format Bar */}
+          <div className="flex items-center justify-between border-b border-border/70 bg-[#FAF9F7] px-3 py-1.5 overflow-x-auto">
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <button
+                type="button"
+                onClick={() => applyFormat("**", "**", "bold")}
+                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground active:scale-95 transition cursor-pointer"
+                title="Bold"
+                aria-label="Bold"
+              >
+                <Bold size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFormat("*", "*", "italic")}
+                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground active:scale-95 transition cursor-pointer"
+                title="Italic"
+                aria-label="Italic"
+              >
+                <Italic size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFormat("\n### ", "\n", "Heading")}
+                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground active:scale-95 transition cursor-pointer"
+                title="Heading"
+                aria-label="Heading"
+              >
+                <Heading size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFormat("\n- ", "", "List item")}
+                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground active:scale-95 transition cursor-pointer"
+                title="Bullet List"
+                aria-label="Bullet List"
+              >
+                <List size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFormat("`", "`", "code")}
+                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground active:scale-95 transition cursor-pointer"
+                title="Code"
+                aria-label="Code"
+              >
+                <Code size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFormat("\n> ", "\n", "quote")}
+                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground active:scale-95 transition cursor-pointer"
+                title="Quote"
+                aria-label="Quote"
+              >
+                <Quote size={14} />
+              </button>
             </div>
+
+            {/* Sync Now Shortcut */}
+            {syncStatus === "typing" && (
+              <button
+                type="button"
+                onClick={handleSyncImmediately}
+                className="flex items-center gap-1 text-[11px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full hover:bg-accent/20 active:scale-95 transition cursor-pointer"
+              >
+                <Zap size={11} />
+                <span>Sync now</span>
+              </button>
+            )}
           </div>
 
+          {/* Text Editor Area */}
           <textarea
             ref={textareaRef}
             value={content}
             onChange={(e) => handleContentChange(e.target.value)}
-            placeholder="Type or paste links, OTPs, or text here to sync live to your laptop..."
-            className="flex-1 w-full min-h-[220px] resize-none rounded-2xl border border-border bg-[#FAF9F6] p-3.5 text-sm outline-none transition focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 placeholder:text-muted leading-relaxed"
+            placeholder="Type notes, links, passwords, or code here to stream live to your laptop note..."
+            className="flex-1 w-full min-h-[300px] p-4 text-[15px] outline-none leading-relaxed text-foreground placeholder:text-muted/60 resize-none bg-transparent"
           />
 
-          {/* Instant Sync shortcut when user is typing */}
-          {syncStatus === "typing" && (
-            <div className="mt-2.5">
-              <button
-                onClick={handleSyncImmediately}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white py-2 text-xs font-semibold shadow-xs transition active:scale-[0.98]"
-              >
-                <Zap size={14} />
-                <span>Sync Now (Don&apos;t wait 2s)</span>
-              </button>
-            </div>
-          )}
-
-          {/* Paste Help Tip for Mobile */}
+          {/* Paste notice feedback */}
           <AnimatePresence>
             {pasteNotice && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800"
+                className="m-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800"
               >
                 <Info size={14} className="shrink-0 mt-0.5 text-amber-600" />
                 <span className="leading-snug">{pasteNotice}</span>
@@ -483,93 +526,71 @@ function ConnectContent() {
             )}
           </AnimatePresence>
 
-          {/* Primary Quick Action Buttons */}
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <button
-              onClick={() => void handlePaste()}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-accent py-3 px-3 text-xs font-medium text-white shadow-xs transition hover:bg-accent/90 active:scale-[0.98]"
-            >
-              {hasPastedSuccess ? (
-                <>
-                  <Check size={14} />
-                  <span>Pasted & Sent!</span>
-                </>
-              ) : (
-                <>
-                  <ArrowDown size={14} />
-                  <span>Paste from phone</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={() => void copy()}
-              disabled={!content}
-              className={`flex items-center justify-center gap-1.5 rounded-xl border py-3 px-3 text-xs font-medium transition active:scale-[0.98] disabled:opacity-40 ${
-                hasCopied
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                  : "border-border bg-white text-foreground hover:bg-cream/60"
-              }`}
-            >
-              <AnimatePresence mode="wait">
-                {hasCopied ? (
-                  <motion.span
-                    key="check"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    className="flex items-center gap-1"
-                  >
-                    <Check size={14} className="text-emerald-600" />
-                    <span>Copied!</span>
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="copy"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-1"
-                  >
-                    <ArrowUp size={14} />
-                    <span>Copy text</span>
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          </div>
-
-          {/* Secondary Utilities */}
-          <div className="mt-2.5 flex items-center gap-2">
-            <button
-              onClick={clear}
-              disabled={!content}
-              className="flex-1 flex items-center justify-center gap-1 rounded-xl border border-border bg-white py-2 text-[11px] font-medium text-muted hover:text-foreground hover:bg-cream/50 transition disabled:opacity-40"
-            >
-              <Eraser size={12} />
-              <span>Clear</span>
-            </button>
-            <button
-              onClick={handleDisconnect}
-              className="flex-1 flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50/60 py-2 text-[11px] font-medium text-red-700 hover:bg-red-100/60 transition"
-            >
-              <LogOut size={12} />
-              <span>Disconnect</span>
-            </button>
-          </div>
-
           {error && (
-            <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+            <p role="alert" className="m-3 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
               {error}
             </p>
           )}
         </div>
+      </main>
 
-        {/* Footer Note */}
-        <p className="mt-4 text-center text-[11px] text-muted">
-          Real-time sync active. Anything you type or paste appears instantly on your laptop.
-        </p>
-      </div>
+      {/* 3. Ergonomic Bottom Floating Action Dock */}
+      <footer className="sticky bottom-0 z-30 border-t border-border/70 bg-white/95 p-3 backdrop-blur-md">
+        <div className="mx-auto flex max-w-lg items-center gap-2">
+          {/* Primary Action: Paste from Phone */}
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => void handlePaste()}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent py-3 px-4 text-xs font-semibold text-white shadow-xs hover:bg-accent/90 transition cursor-pointer"
+          >
+            {hasPastedSuccess ? (
+              <>
+                <Check size={16} className="text-emerald-300" />
+                <span>Pasted & Sent!</span>
+              </>
+            ) : (
+              <>
+                <Clipboard size={16} />
+                <span>Paste from phone</span>
+              </>
+            )}
+          </motion.button>
+
+          {/* Secondary Action: Copy */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => void copy()}
+            disabled={!content}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-cream/40 py-3 px-3.5 text-xs font-medium text-foreground hover:bg-cream transition disabled:opacity-40 cursor-pointer"
+            title="Copy note"
+            aria-label="Copy note"
+          >
+            {hasCopied ? (
+              <>
+                <Check size={15} className="text-emerald-600" />
+                <span className="hidden sm:inline">Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy size={15} className="text-muted" />
+                <span className="hidden sm:inline">Copy</span>
+              </>
+            )}
+          </motion.button>
+
+          {/* Secondary Action: Clear */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={clear}
+            disabled={!content}
+            className="grid size-11 place-items-center rounded-xl border border-border bg-cream/40 text-muted hover:text-red-600 hover:bg-red-50/60 transition disabled:opacity-40 cursor-pointer"
+            title="Clear text"
+            aria-label="Clear text"
+          >
+            <Trash2 size={16} />
+          </motion.button>
+        </div>
+      </footer>
     </div>
   );
 }

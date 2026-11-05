@@ -46,26 +46,28 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex flex-col justify-between min-h-screen w-full max-w-full overflow-x-hidden bg-[#faf9f6] px-4 py-5 sm:px-8 sm:py-8">
-      {/* Ambient Animated Gradient Orbs */}
-      <motion.div
-        animate={{
-          x: [0, 25, 0],
-          y: [0, -20, 0],
-          scale: [1, 1.08, 1],
-        }}
-        transition={{ repeat: Infinity, duration: 12, ease: "easeInOut" }}
-        className="pointer-events-none absolute -left-32 top-20 size-72 sm:size-96 rounded-full bg-[#e8ecd9] blur-3xl opacity-70"
-      />
-      <motion.div
-        animate={{
-          x: [0, -30, 0],
-          y: [0, 25, 0],
-          scale: [1, 1.06, 1],
-        }}
-        transition={{ repeat: Infinity, duration: 14, ease: "easeInOut" }}
-        className="pointer-events-none absolute -right-28 bottom-0 size-72 sm:size-96 rounded-full bg-[#f4e8d8] blur-3xl opacity-80"
-      />
+    <main className="relative flex flex-col justify-between min-h-screen w-full max-w-full overflow-x-hidden bg-[#faf9f6] px-3.5 py-4 sm:px-8 sm:py-8">
+      {/* Ambient Animated Gradient Orbs - strictly contained to prevent horizontal scroll */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{
+            x: [0, 25, 0],
+            y: [0, -20, 0],
+            scale: [1, 1.08, 1],
+          }}
+          transition={{ repeat: Infinity, duration: 12, ease: "easeInOut" }}
+          className="transform-gpu will-change-transform absolute -left-32 top-20 size-72 sm:size-96 rounded-full bg-[#e8ecd9] blur-2xl sm:blur-3xl opacity-60 sm:opacity-70"
+        />
+        <motion.div
+          animate={{
+            x: [0, -30, 0],
+            y: [0, 25, 0],
+            scale: [1, 1.06, 1],
+          }}
+          transition={{ repeat: Infinity, duration: 14, ease: "easeInOut" }}
+          className="transform-gpu will-change-transform absolute -right-28 bottom-0 size-72 sm:size-96 rounded-full bg-[#f4e8d8] blur-2xl sm:blur-3xl opacity-70 sm:opacity-80"
+        />
+      </div>
 
       {/* Header */}
       <motion.header
@@ -176,12 +178,12 @@ export default function LoginPage() {
 
         {/* Column B: Login Card (Mobile Top / Desktop Right) */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.15 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
           className="order-1 lg:order-2 w-full max-w-md justify-self-center min-w-0"
         >
-          <SpotlightCard className="!p-5 sm:!p-8 border-border bg-white/95 backdrop-blur-md shadow-[0_20px_50px_rgb(41_40_36_/_0.08)] w-full max-w-full overflow-hidden">
+          <SpotlightCard className="!px-4 !py-6 sm:!p-8 border-border bg-white sm:bg-white/95 sm:backdrop-blur-md shadow-[0_20px_50px_rgb(41_40_36_/_0.08)] w-full max-w-full">
             <div className="grid size-11 place-items-center rounded-xl bg-cream text-accent shadow-2xs">
               <ShieldCheck size={22} />
             </div>
@@ -193,7 +195,7 @@ export default function LoginPage() {
               Choose your Google account to access your permanent workspace.
             </p>
 
-            <div className="mt-6 w-full max-w-full overflow-hidden">
+            <div className="mt-6 w-full flex justify-center">
               <GoogleSignInButton />
             </div>
 

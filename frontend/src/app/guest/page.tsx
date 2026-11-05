@@ -9,7 +9,7 @@ import { motion } from "motion/react";
 import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
 
 type GuestSession = { id: string; token: string; status: string; expires_at: string };
-const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const api = process.env.NEXT_PROD_API_URL;
 const TOTAL_DURATION_SECONDS = 300; // 5 minute standard expiry
 
 export default function GuestPage() {
@@ -18,7 +18,7 @@ export default function GuestPage() {
   const [remaining, setRemaining] = useState(TOTAL_DURATION_SECONDS);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const needsTurnstile = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+  const needsTurnstile = Boolean(process.env.NEXT_PROD_TURNSTILE_SITE_KEY);
 
   const create = async (token = turnstileToken) => {
     setError(undefined);

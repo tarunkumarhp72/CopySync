@@ -11,7 +11,7 @@ declare global {
 export function Turnstile({ action, onToken, onExpired }: { action: string; onToken: (token: string) => void; onExpired: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string>();
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const siteKey = process.env.NEXT_PROD_TURNSTILE_SITE_KEY;
   const [error, setError] = useState("");
   useEffect(() => {
     if (!siteKey || !host.current) return;

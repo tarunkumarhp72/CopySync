@@ -1,21 +1,33 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Runtime configuration loaded only from backend/.env or COPYSYNC_* variables."""
+    """Runtime configuration loaded directly from backend/.env or standard environment variables."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        env_prefix="COPYSYNC_",
     )
 
     DATABASE_URL: str
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        if isinstance(v, str):
+            v_stripped = v.strip()
+            if v_stripped.startswith("postgres://"):
+                return v_stripped.replace("postgres://", "postgresql+asyncpg://", 1)
+            if v_stripped.startswith("postgresql://") and not v_stripped.startswith("postgresql+"):
+                return v_stripped.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str
@@ -42,6 +54,13 @@ class Settings(BaseSettings):
     REDIS_URL: str
     APP_ENV: Literal["development", "production"]
     DEBUG: bool
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def _normalize_debug(cls, v: object) -> bool:
+        if isinstance(v, str):
+            return v.strip().lower() in {"true", "1", "yes", "t", "on", "dev", "development"}
+        return bool(v)
 
     @property
     def cors_origins(self) -> list[str]:

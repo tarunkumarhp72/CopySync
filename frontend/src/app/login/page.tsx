@@ -9,7 +9,7 @@ import SplitText from "@/components/SplitText";
 import { SpotlightCard } from "@/components/motion/SpotlightCard";
 import { motion } from "motion/react";
 
-const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const api = process.env.NEXT_PROD_API_URL;
 
 export default function LoginPage() {
   const router = useRouter();

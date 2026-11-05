@@ -8,7 +8,7 @@ declare global {
   }
 }
 
-const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const api = process.env.NEXT_PROD_API_URL;
 
 export function GoogleSignInButton() {
   const mount = useRef<HTMLDivElement>(null);

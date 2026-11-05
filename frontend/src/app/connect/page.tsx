@@ -6,7 +6,7 @@ import { Clipboard, Eraser, LogOut, Check, Smartphone, ArrowDown, ArrowUp } from
 import { Suspense, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
-const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const api = process.env.NEXT_PROD_API_URL;
 
 function ConnectContent() {
   const query = useSearchParams();

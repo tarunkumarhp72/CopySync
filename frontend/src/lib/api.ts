@@ -1,5 +1,6 @@
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}${path}`, {
+  const baseUrl = process.env.NEXT_PROD_API_URL;
+  const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...init.headers },

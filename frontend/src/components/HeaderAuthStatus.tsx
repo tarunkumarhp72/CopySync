@@ -32,7 +32,7 @@ type NotificationItem = {
   type: "device" | "note" | "security";
 };
 
-const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const api = process.env.NEXT_PROD_API_URL;
 
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   {

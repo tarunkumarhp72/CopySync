@@ -43,7 +43,7 @@ type Props = {
   onError: (message: string) => void;
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const apiUrl = process.env.NEXT_PROD_API_URL;
 const MAX_NOTE_CHARS = 20000;
 
 // Instant Floating Hover Tooltip Component

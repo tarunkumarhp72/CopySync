@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { Loader2 } from "lucide-react";
 
 declare global {
   interface Window {
@@ -26,6 +27,7 @@ export function GoogleSignInButton() {
   const lastWidthRef = useRef<number>(0);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const renderGoogleButton = useCallback(() => {
     if (!window.google || !mountRef.current || !clientIdRef.current) return;
@@ -85,31 +87,38 @@ export function GoogleSignInButton() {
             cancel_on_tap_outside: true,
             callback: async ({ credential }: { credential: string }) => {
               setError("");
+              setIsAuthenticating(true);
               const guestToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
-              const response = await fetch(`${api}/auth/google/credential`, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                  "Content-Type": "application/json",
-                  ...(guestToken ? { "X-Guest-Workspace-Token": guestToken } : {}),
-                },
-                body: JSON.stringify({ credential }),
-              });
-              if (!response.ok) {
-                setError(
-                  (await response.json().catch(() => null))?.detail ??
-                    "Google sign-in could not be completed."
-                );
-                return;
-              }
-              const data = await response.json().catch(() => null);
-              if (typeof window !== "undefined") {
-                if (data?.token) {
-                  localStorage.setItem("copysync_token", data.token);
+              try {
+                const response = await fetch(`${api}/auth/google/credential`, {
+                  method: "POST",
+                  credentials: "include",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(guestToken ? { "X-Guest-Workspace-Token": guestToken } : {}),
+                  },
+                  body: JSON.stringify({ credential }),
+                });
+                if (!response.ok) {
+                  setError(
+                    (await response.json().catch(() => null))?.detail ??
+                      "Google sign-in could not be completed."
+                  );
+                  setIsAuthenticating(false);
+                  return;
                 }
-                localStorage.removeItem("copysync_guest_token");
+                const data = await response.json().catch(() => null);
+                if (typeof window !== "undefined") {
+                  if (data?.token) {
+                    localStorage.setItem("copysync_token", data.token);
+                  }
+                  localStorage.removeItem("copysync_guest_token");
+                }
+                window.location.assign("/dashboard");
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : "Google sign-in failed.");
+                setIsAuthenticating(false);
               }
-              window.location.assign("/dashboard");
             },
           });
 
@@ -180,7 +189,15 @@ export function GoogleSignInButton() {
   const fallback = () => window.location.assign(`${api}/auth/google/login`);
 
   return (
-    <div ref={containerRef} className="w-full flex flex-col items-center">
+    <div ref={containerRef} className="relative w-full flex flex-col items-center">
+      {/* Loading Overlay when Google Auth is processing */}
+      {isAuthenticating && (
+        <div className="absolute inset-0 bg-white/95 backdrop-blur-xs flex items-center justify-center gap-2 rounded-lg border border-border text-xs font-semibold text-foreground z-30 shadow-xs min-h-[44px]">
+          <Loader2 size={16} className="animate-spin text-accent" />
+          <span>Signing in with Google...</span>
+        </div>
+      )}
+
       {/* Google button mount point - centered, never clipped */}
       <div
         ref={mountRef}

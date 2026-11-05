@@ -13,12 +13,15 @@ import {
   AlertCircle,
   Sparkles,
   Smartphone,
+  Loader2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { notesService } from "@/services/notes.service";
 import type { Note, NoteListItem } from "@/types/note";
 import { RichTextEditor } from "@/features/notes/RichTextEditor";
 import { GuestLimitModal } from "@/features/notes/GuestLimitModal";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { NoteListSkeleton, NoteEditorSkeleton } from "@/components/ui/Skeleton";
 import { motion, AnimatePresence } from "motion/react";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -44,7 +47,31 @@ export function NotesWorkspace({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+
+  // Loading States
+  const [isLoadingNotes, setIsLoadingNotes] = useState(true);
+  const [isCreatingNote, setIsCreatingNote] = useState(false);
+  const [isLoadingActiveNote, setIsLoadingActiveNote] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
+
+  // Custom Confirm Modal State (Replaces all browser confirm() dialogs)
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    variant: "danger" | "warning";
+    isLoading: boolean;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    confirmText: "Confirm",
+    variant: "danger",
+    isLoading: false,
+    onConfirm: () => {},
+  });
 
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const activeRef = useRef<Note>();
@@ -61,12 +88,20 @@ export function NotesWorkspace({
   }, [isGuestMode]);
 
   const load = useCallback(async () => {
+    setIsLoadingNotes(true);
     try {
       const list = await notesService.list();
       setNotes(list);
-      if (list[0]) setActive(await notesService.get(list[0].id));
+      if (list[0]) {
+        setIsLoadingActiveNote(true);
+        const first = await notesService.get(list[0].id);
+        setActive(first);
+        setIsLoadingActiveNote(false);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load notes.");
+    } finally {
+      setIsLoadingNotes(false);
     }
   }, []);
 
@@ -157,11 +192,15 @@ export function NotesWorkspace({
   }, [guestSessionId, guestToken]);
 
   const select = async (id: string) => {
+    setIsLoadingActiveNote(true);
     try {
-      setActive(await notesService.get(id));
+      const note = await notesService.get(id);
+      setActive(note);
       setSidebarOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to open note.");
+    } finally {
+      setIsLoadingActiveNote(false);
     }
   };
 
@@ -202,6 +241,7 @@ export function NotesWorkspace({
       return;
     }
 
+    setIsCreatingNote(true);
     try {
       const note = await notesService.create();
       setNotes((items) => [note, ...items]);
@@ -214,19 +254,35 @@ export function NotesWorkspace({
       } else {
         setError(cause instanceof Error ? cause.message : "Could not create note.");
       }
+    } finally {
+      setIsCreatingNote(false);
     }
   };
 
-  const remove = async () => {
-    if (!active || !confirm("Delete this note?")) return;
-    try {
-      await notesService.remove(active.id);
-      const remaining = notes.filter((note) => note.id !== active.id);
-      setNotes(remaining);
-      setActive(remaining[0] ? await notesService.get(remaining[0].id) : undefined);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not delete note.");
-    }
+  // Custom Confirmation Dialog for Note Deletion (Replaces browser confirm)
+  const promptDeleteNote = () => {
+    if (!active) return;
+    setConfirmConfig({
+      isOpen: true,
+      title: "Delete this note?",
+      description: `"${active.title || "Untitled"}" will be permanently removed from your notes list.`,
+      confirmText: "Delete Note",
+      variant: "danger",
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await notesService.remove(active.id);
+          const remaining = notes.filter((note) => note.id !== active.id);
+          setNotes(remaining);
+          setActive(remaining[0] ? await notesService.get(remaining[0].id) : undefined);
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : "Could not delete note.");
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+        }
+      },
+    });
   };
 
   const logout = async () => {
@@ -245,43 +301,53 @@ export function NotesWorkspace({
     }
   };
 
-  const endGuestSession = async () => {
-    if (!confirm("End this guest session? All unsaved guest notes will be cleared.")) {
-      return;
-    }
-    setIsEndingSession(true);
-    try {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: "session.closed" }));
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      await apiFetch<void>("/guest-workspace", { method: "DELETE" }).catch(() => {});
-      const effectiveSessionId =
-        guestSessionId ||
-        (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_id") : null);
-      const effectiveToken =
-        guestToken ||
-        (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_token") : null);
+  // Custom Confirmation Dialog for Ending Guest Session (Replaces browser confirm)
+  const promptEndGuestSession = () => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "End guest session?",
+      description: "All unsaved guest notes and temporary clipboard history will be cleared from the database.",
+      confirmText: "End Session & Clear",
+      variant: "danger",
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
+        setIsEndingSession(true);
+        try {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "session.closed" }));
+            wsRef.current.close();
+            wsRef.current = null;
+          }
+          await apiFetch<void>("/guest-workspace", { method: "DELETE" }).catch(() => {});
+          const effectiveSessionId =
+            guestSessionId ||
+            (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_id") : null);
+          const effectiveToken =
+            guestToken ||
+            (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_token") : null);
 
-      if (effectiveSessionId && effectiveToken) {
-        await apiFetch<void>(`/guest/session/${effectiveSessionId}`, {
-          method: "DELETE",
-          body: JSON.stringify({ token: effectiveToken }),
-        }).catch(() => {});
-      }
-    } finally {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("copysync_guest_token");
-        localStorage.removeItem("copysync_guest_session_id");
-        localStorage.removeItem("copysync_guest_session_token");
-      }
-      if (onEndGuestSession) {
-        onEndGuestSession();
-      } else {
-        location.assign("/");
-      }
-    }
+          if (effectiveSessionId && effectiveToken) {
+            await apiFetch<void>(`/guest/session/${effectiveSessionId}`, {
+              method: "DELETE",
+              body: JSON.stringify({ token: effectiveToken }),
+            }).catch(() => {});
+          }
+        } finally {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("copysync_guest_token");
+            localStorage.removeItem("copysync_guest_session_id");
+            localStorage.removeItem("copysync_guest_session_token");
+          }
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          if (onEndGuestSession) {
+            onEndGuestSession();
+          } else {
+            location.assign("/");
+          }
+        }
+      },
+    });
   };
 
   const filteredNotes = notes.filter((note) =>
@@ -306,15 +372,25 @@ export function NotesWorkspace({
         </button>
       </div>
 
-      {/* New Note Button */}
+      {/* New Note Button with Spinner Loading State */}
       <motion.button
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: isCreatingNote ? 1 : 1.01 }}
+        whileTap={{ scale: isCreatingNote ? 1 : 0.98 }}
         onClick={() => void create()}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-xs hover:bg-accent/90 transition"
+        disabled={isCreatingNote}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-xs hover:bg-accent/90 transition disabled:opacity-70 cursor-pointer disabled:cursor-not-allowed"
       >
-        <FilePlus2 size={16} />
-        <span>New note</span>
+        {isCreatingNote ? (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            <span>Creating note...</span>
+          </>
+        ) : (
+          <>
+            <FilePlus2 size={16} />
+            <span>New note</span>
+          </>
+        )}
       </motion.button>
 
       {/* Search Input */}
@@ -328,41 +404,59 @@ export function NotesWorkspace({
         />
       </div>
 
-      {/* Notes List */}
+      {/* Notes List with Skeletons */}
       <nav aria-label="Notes" className="mt-3 flex-1 overflow-y-auto space-y-1 pr-1">
-        <AnimatePresence initial={false}>
-          {filteredNotes.map((note) => (
-            <motion.div
-              key={note.id}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.15 }}
-            >
-              <button
-                className={`group flex w-full items-center justify-between rounded-sm px-3 py-2.5 text-left text-xs transition ${
-                  active?.id === note.id
-                    ? "bg-accent/15 text-accent font-medium shadow-2xs"
-                    : "text-muted hover:bg-cream/60 hover:text-foreground"
-                }`}
-                onClick={() => void select(note.id)}
+        {isLoadingNotes ? (
+          <NoteListSkeleton />
+        ) : (
+          <>
+            {/* Shimmering item when actively creating a note */}
+            {isCreatingNote && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 rounded-sm p-3 bg-accent/10 border border-accent/30 text-accent text-xs font-semibold"
               >
-                <span className="truncate pr-2">{note.title || "Untitled"}</span>
-                <span className="text-[10px] opacity-60 shrink-0">
-                  {new Date(note.updated_at).toLocaleDateString([], {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                <Loader2 size={13} className="animate-spin text-accent shrink-0" />
+                <span className="truncate">Creating new note...</span>
+              </motion.div>
+            )}
 
-        {filteredNotes.length === 0 && (
-          <div className="py-8 text-center text-xs text-muted">
-            {query ? "No notes matching your search" : "No notes yet"}
-          </div>
+            <AnimatePresence initial={false}>
+              {filteredNotes.map((note) => (
+                <motion.div
+                  key={note.id}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <button
+                    className={`group flex w-full items-center justify-between rounded-sm px-3 py-2.5 text-left text-xs transition cursor-pointer ${
+                      active?.id === note.id
+                        ? "bg-accent/15 text-accent font-medium shadow-2xs"
+                        : "text-muted hover:bg-cream/60 hover:text-foreground"
+                    }`}
+                    onClick={() => void select(note.id)}
+                  >
+                    <span className="truncate pr-2">{note.title || "Untitled"}</span>
+                    <span className="text-[10px] opacity-60 shrink-0">
+                      {new Date(note.updated_at).toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {filteredNotes.length === 0 && !isCreatingNote && (
+              <div className="py-8 text-center text-xs text-muted">
+                {query ? "No notes matching your search" : "No notes yet"}
+              </div>
+            )}
+          </>
         )}
       </nav>
 
@@ -384,19 +478,20 @@ export function NotesWorkspace({
             </p>
             <button
               onClick={() => setShowLimitModal(true)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-accent text-white py-1.5 text-xs font-semibold shadow-2xs hover:bg-accent/90 transition"
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-accent text-white py-1.5 text-xs font-semibold shadow-2xs hover:bg-accent/90 transition cursor-pointer"
             >
               <Sparkles size={12} />
               <span>Save Notes to Account</span>
             </button>
           </div>
 
+          {/* End Session Button triggers Custom Confirmation Modal */}
           <motion.button
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => void endGuestSession()}
+            onClick={promptEndGuestSession}
             disabled={isEndingSession}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50/70 py-2 text-xs font-medium text-red-700 hover:bg-red-100/70 transition disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50/70 py-2 text-xs font-medium text-red-700 hover:bg-red-100/70 transition disabled:opacity-50 cursor-pointer"
           >
             <X size={14} />
             <span>End Session & Clear Data</span>
@@ -408,7 +503,7 @@ export function NotesWorkspace({
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => void logout()}
-          className="mt-4 flex w-full items-center gap-2 rounded-sm border border-border bg-white px-3 py-2.5 text-sm font-medium text-muted hover:text-foreground hover:bg-cream transition"
+          className="mt-4 flex w-full items-center gap-2 rounded-sm border border-border bg-white px-3 py-2.5 text-sm font-medium text-muted hover:text-foreground hover:bg-cream transition cursor-pointer"
         >
           <LogOut size={16} />
           <span>Sign out</span>
@@ -508,7 +603,7 @@ export function NotesWorkspace({
               {isGuest && (
                 <button
                   onClick={() => setShowLimitModal(true)}
-                  className="hidden md:inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 hover:bg-accent/20 px-3 py-1.5 text-xs font-semibold text-accent transition"
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 hover:bg-accent/20 px-3 py-1.5 text-xs font-semibold text-accent transition cursor-pointer"
                 >
                   <Sparkles size={13} />
                   <span>Sign in with Google</span>
@@ -517,8 +612,8 @@ export function NotesWorkspace({
 
               {active && (
                 <button
-                  onClick={() => void remove()}
-                  className="rounded-md p-2 text-muted hover:bg-cream hover:text-red-600 transition"
+                  onClick={promptDeleteNote}
+                  className="rounded-md p-2 text-muted hover:bg-cream hover:text-red-600 transition cursor-pointer"
                   title="Delete note"
                   aria-label="Delete note"
                 >
@@ -540,8 +635,10 @@ export function NotesWorkspace({
             </div>
           )}
 
-          {/* Active Note or Empty State */}
-          {active ? (
+          {/* Active Note, Loading Skeleton, or Empty State */}
+          {isLoadingActiveNote ? (
+            <NoteEditorSkeleton />
+          ) : active ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-8 sm:px-12">
               <input
                 value={active.title}
@@ -580,13 +677,23 @@ export function NotesWorkspace({
                 </p>
 
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ scale: isCreatingNote ? 1 : 1.02 }}
+                  whileTap={{ scale: isCreatingNote ? 1 : 0.97 }}
                   onClick={() => void create()}
-                  className="mt-5 inline-flex items-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-xs hover:bg-accent/90 transition"
+                  disabled={isCreatingNote}
+                  className="mt-5 inline-flex items-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-xs hover:bg-accent/90 transition cursor-pointer disabled:opacity-70"
                 >
-                  <FilePlus2 size={16} />
-                  <span>Create a note</span>
+                  {isCreatingNote ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Creating note...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FilePlus2 size={16} />
+                      <span>Create a note</span>
+                    </>
+                  )}
                 </motion.button>
               </motion.div>
             </div>
@@ -594,8 +701,20 @@ export function NotesWorkspace({
         </section>
       </section>
 
-      {/* Guest Limit Modal */}
+      {/* Guest 3-Note Limit Modal */}
       <GuestLimitModal isOpen={showLimitModal} onClose={() => setShowLimitModal(false)} />
+
+      {/* Custom Confirmation Modal (Replaces browser confirm() dialogs) */}
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        description={confirmConfig.description}
+        confirmText={confirmConfig.confirmText}
+        variant={confirmConfig.variant}
+        isLoading={confirmConfig.isLoading}
+        onConfirm={confirmConfig.onConfirm}
+        onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
+      />
     </main>
   );
 }

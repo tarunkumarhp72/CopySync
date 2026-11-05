@@ -15,8 +15,13 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "CopySync",
-  description: "Copy once. Sync everywhere.",
+  title: "CopySync — Realtime Notes & Clipboard Sync",
+  description: "Copy once. Sync everywhere across phone and laptop.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport = {

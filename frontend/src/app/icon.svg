@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="copysync-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b4c39"/>
+      <stop offset="100%" stop-color="#243122"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle App Icon Background -->
+  <rect width="128" height="128" rx="28" fill="url(#copysync-grad)" />
+
+  <!-- Clipboard Board Body -->
+  <g filter="url(#shadow)">
+    <!-- Clipboard Outline / Body -->
+    <rect x="34" y="32" width="60" height="74" rx="10" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Clipboard Clip at Top -->
+    <path d="M48 34 V25 A5 5 0 0 1 53 20 H75 A5 5 0 0 1 80 25 V34 Z" fill="#FFFFFF" />
+    <rect x="54" y="27" width="20" height="4" rx="2" fill="#243122" />
+
+    <!-- Synchronizing / Document Lines & Sync Dot -->
+    <line x1="47" y1="52" x2="81" y2="52" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.95" />
+    <line x1="47" y1="67" x2="71" y2="67" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.95" />
+    <line x1="47" y1="82" x2="63" y2="82" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.95" />
+
+    <!-- Sync Indicator Badge at bottom right -->
+    <circle cx="85" cy="85" r="14" fill="#38A169" stroke="#243122" stroke-width="3"/>
+    <!-- Sync arrows inside badge -->
+    <path d="M81 83 A4.5 4.5 0 0 1 88 80.5 L89 79 M89 87 A4.5 4.5 0 0 1 82 89.5 L81 91" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>
+    <polygon points="89,82 89,79 86,79" fill="#FFFFFF"/>
+    <polygon points="81,88 81,91 84,91" fill="#FFFFFF"/>
+  </g>
+</svg>

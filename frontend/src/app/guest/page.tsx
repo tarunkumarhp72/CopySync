@@ -12,10 +12,10 @@ import {
   Smartphone,
   Loader2,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { Turnstile } from "@/components/Turnstile";
 import { motion, AnimatePresence } from "motion/react";
 import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
+import { ProfessionalQRCode } from "@/components/ui/ProfessionalQRCode";
 
 type GuestSession = { id: string; token: string; status: string; expires_at: string };
 
@@ -275,11 +275,16 @@ export default function GuestPage() {
                         <span>Ready to scan</span>
                       </div>
 
-                      <div className="mt-5 rounded-xl border border-border bg-white p-3 sm:p-4 shadow-2xs max-w-full overflow-hidden">
-                        <QRCodeSVG value={url} size={180} className="size-40 sm:size-48" level="M" includeMargin={false} />
+                      <div className="mt-4 flex flex-col items-center">
+                        <ProfessionalQRCode
+                          value={url}
+                          size={190}
+                          onRefresh={() => create()}
+                          isRefreshing={isRefreshing}
+                        />
                       </div>
 
-                      <div className="mt-4 w-full min-w-0">
+                      <div className="mt-3.5 w-full min-w-0">
                         <InteractiveCopyPill textToCopy={url} displayText="Copy direct connection link" className="w-full justify-between bg-white py-2" />
                       </div>
                     </div>

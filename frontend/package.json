@@ -23,6 +23,7 @@
 		"lucide-react": "^1.67.0",
 		"motion": "^14.9.1",
 		"next": "14.2.35",
+		"qr-code-styling": "^1.9.2",
 		"qrcode.react": "^4.2.0",
 		"react": "^18",
 		"react-dom": "^18",

@@ -16,7 +16,7 @@ async def guest_websocket(websocket: WebSocket, session_id: str, token: str, rol
         await websocket.close(code=1008)
         return
     ip = websocket.client.host if websocket.client else "unknown"
-    if not await limiter.hit(f"ws:ip:{ip}", 10, 300) or not await limiter.hit(f"ws:session:{session_id}", 10, 300):
+    if not await limiter.hit(f"ws:ip:{ip}", 60, 300) or not await limiter.hit(f"ws:session:{session_id}", 60, 300):
         await websocket.close(code=1013)
         return
     async with AsyncSessionLocal() as db:
@@ -32,9 +32,15 @@ async def guest_websocket(websocket: WebSocket, session_id: str, token: str, rol
     if len(manager.channels.get(channel, set())) >= 3:
         await websocket.close(code=1013, reason="Maximum 3 guest connections reached")
         return
-    if manager.role_in_use(channel, role):
-        await websocket.close(code=1013)
-        return
+    # Allow graceful reconnection by replacing any stale connection with the same role
+    for existing_ws in list(manager.channels.get(channel, set())):
+        if getattr(existing_ws.state, "guest_role", None) == role:
+            manager.disconnect(channel, existing_ws)
+            try:
+                await existing_ws.close(code=1000)
+            except Exception:
+                pass
+
     websocket.state.guest_role = role
     await manager.connect(channel, websocket)
     expires_at_iso = session.expires_at.isoformat() if hasattr(session, "expires_at") and session.expires_at else None

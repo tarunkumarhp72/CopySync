@@ -181,43 +181,74 @@ export function NotesWorkspace({
         .join("");
     };
 
+    let isTerminated = false;
+
+    const handleSessionEnded = () => {
+      if (isTerminated) return;
+      isTerminated = true;
+
+      const isUserLoggedIn =
+        typeof window !== "undefined" && Boolean(localStorage.getItem("copysync_token"));
+
+      if (!isUserLoggedIn) {
+        const gToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
+        if (gToken && api) {
+          fetch(`${api}/guest-workspace`, {
+            method: "DELETE",
+            headers: { "X-Guest-Workspace-Token": gToken },
+          }).catch(() => {});
+        }
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("copysync_guest_token");
+          localStorage.removeItem("copysync_guest_session_id");
+          localStorage.removeItem("copysync_guest_session_token");
+          localStorage.removeItem("copysync_guest_expires_at");
+        }
+        setIsConnectionLost(true);
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+        return;
+      }
+
+      setError("Mobile device disconnected. Pairing session has ended.");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("copysync_guest_session_id");
+        localStorage.removeItem("copysync_guest_session_token");
+        localStorage.removeItem("copysync_guest_expires_at");
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+
+    // HTTP Heartbeat Polling: fallback if WebSocket fails or drops
+    const pollInterval = setInterval(async () => {
+      if (isTerminated) return;
+      try {
+        const res = await fetch(
+          `${api}/guest/session/${effectiveSessionId}?token=${encodeURIComponent(effectiveToken)}`
+        );
+        if (res.ok) {
+          const body = await res.json();
+          if (body.status === "closed" || body.status === "expired") {
+            handleSessionEnded();
+          }
+        } else if (res.status === 404 || res.status === 410) {
+          handleSessionEnded();
+        }
+      } catch {
+        // network blip, continue polling
+      }
+    }, 2000);
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "session.closed" || data.type === "session.receiver_left") {
-          const isUserLoggedIn =
-            typeof window !== "undefined" && Boolean(localStorage.getItem("copysync_token"));
-
-          if (!isUserLoggedIn) {
-            const gToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
-            if (gToken && api) {
-              fetch(`${api}/guest-workspace`, {
-                method: "DELETE",
-                headers: { "X-Guest-Workspace-Token": gToken },
-              }).catch(() => {});
-            }
-            if (typeof window !== "undefined") {
-              localStorage.removeItem("copysync_guest_token");
-              localStorage.removeItem("copysync_guest_session_id");
-              localStorage.removeItem("copysync_guest_session_token");
-            }
-            setIsConnectionLost(true);
-            if (wsRef.current) {
-              wsRef.current.close();
-              wsRef.current = null;
-            }
-            return;
-          }
-
-          setError("Mobile device disconnected. Pairing session has ended.");
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("copysync_guest_session_id");
-            localStorage.removeItem("copysync_guest_session_token");
-          }
-          if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
-          }
+          handleSessionEnded();
           return;
         }
         if (data.type === "clipboard.updated" && typeof data.content === "string") {
@@ -249,6 +280,7 @@ export function NotesWorkspace({
 
     return () => {
       clearInterval(pingInterval);
+      clearInterval(pollInterval);
       ws.close();
       wsRef.current = null;
     };

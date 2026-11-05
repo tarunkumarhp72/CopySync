@@ -34,3 +34,16 @@ async def close_guest_session(session_id: uuid.UUID, data: GuestClose, db: Async
         {"type": "session.closed", "session_id": str(session_id), "by": "api"}
     )
     return session
+
+
+@router.get("/session/{session_id}")
+async def get_guest_session_status(session_id: uuid.UUID, token: str, db: AsyncSession = Depends(get_db)):
+    try:
+        session = await service.get_valid_session(db, str(session_id), token)
+        return {
+            "id": str(session.id),
+            "status": session.status,
+            "expires_at": session.expires_at.isoformat() if session.expires_at else None,
+        }
+    except Exception:
+        return {"id": str(session_id), "status": "closed"}

@@ -46,7 +46,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative grid min-h-screen overflow-hidden bg-[#faf9f6] px-4 py-6 sm:px-8 sm:py-8">
+    <main className="relative flex flex-col justify-between min-h-screen w-full max-w-full overflow-x-hidden bg-[#faf9f6] px-4 py-5 sm:px-8 sm:py-8">
       {/* Ambient Animated Gradient Orbs */}
       <motion.div
         animate={{
@@ -72,9 +72,9 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative mx-auto flex w-full max-w-6xl items-center justify-between"
+        className="relative mx-auto flex w-full max-w-6xl items-center justify-between gap-4"
       >
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-foreground">
+        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-foreground shrink-0">
           <span className="grid size-8 sm:size-9 place-items-center rounded-xl bg-accent text-white shadow-xs">
             <Clipboard size={17} />
           </span>
@@ -82,21 +82,21 @@ export default function LoginPage() {
         </Link>
         <Link
           href="/"
-          className="flex items-center gap-1.5 text-xs sm:text-sm text-muted hover:text-foreground transition"
+          className="flex items-center gap-1.5 text-xs sm:text-sm text-muted hover:text-foreground transition shrink-0 whitespace-nowrap"
         >
           <ArrowLeft size={14} />
           <span>Back to home</span>
         </Link>
       </motion.header>
 
-      {/* Main Section: On Mobile, Login Card is at TOP (order-1), Text is below (order-2) */}
-      <section className="relative mx-auto grid w-full max-w-6xl items-center gap-8 py-6 sm:py-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-12">
+      {/* Main Section: Responsive 2-column or single-column on mobile */}
+      <section className="relative mx-auto grid w-full max-w-6xl items-center gap-8 py-6 sm:py-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-12 min-w-0">
         {/* Column A: Reassurance & Feature Information (Desktop Left, Mobile Below Login Card) */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="order-2 lg:order-1 max-w-xl"
+          className="order-2 lg:order-1 w-full max-w-xl min-w-0"
         >
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-white/70 px-3 py-1.5 text-xs font-medium text-accent shadow-2xs">
             <Sparkles size={14} /> Your space, always in sync
@@ -110,58 +110,66 @@ export default function LoginPage() {
             effect="rise"
             delay={35}
             duration={0.7}
-            className="mt-4 sm:mt-6 text-balance text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-5xl text-foreground"
+            className="mt-4 sm:mt-6 text-2xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-5xl text-foreground break-words text-balance"
             textAlign="left"
           />
 
-          <p className="mt-3 sm:mt-5 max-w-lg text-base sm:text-lg leading-relaxed text-muted">
+          <p className="mt-3 sm:mt-5 max-w-lg text-sm sm:text-lg leading-relaxed text-muted break-words">
             Sign in once and keep your notes ready on every device. Your Google password never reaches CopySync.
           </p>
 
-          <ul className="mt-6 sm:mt-8 space-y-3 text-xs sm:text-sm text-muted">
+          <ul className="mt-6 sm:mt-8 space-y-3.5 text-xs sm:text-sm text-muted">
             <motion.li
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="flex items-center gap-2.5 sm:gap-3"
+              className="flex items-start gap-2.5 sm:gap-3"
             >
-              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent">
-                <Check size={13} />
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent mt-0.5">
+                <Check size={12} strokeWidth={2.5} />
               </span>
-              <span>Secure Google account verification</span>
+              <span className="flex-1 min-w-0 break-words leading-relaxed">
+                Secure Google account verification
+              </span>
             </motion.li>
             <motion.li
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex items-center gap-2.5 sm:gap-3"
+              className="flex items-start gap-2.5 sm:gap-3"
             >
-              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent">
-                <Check size={13} />
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent mt-0.5">
+                <Check size={12} strokeWidth={2.5} />
               </span>
-              <span>Notes persist safely in your private workspace</span>
+              <span className="flex-1 min-w-0 break-words leading-relaxed">
+                Notes persist safely in your private workspace
+              </span>
             </motion.li>
             <motion.li
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
-              className="flex items-center gap-2.5 sm:gap-3"
+              className="flex items-start gap-2.5 sm:gap-3"
             >
-              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent">
-                <Check size={13} />
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent mt-0.5">
+                <Check size={12} strokeWidth={2.5} />
               </span>
-              <span>Connect up to 5 permanent devices across laptops, desktops & phones</span>
+              <span className="flex-1 min-w-0 break-words leading-relaxed">
+                Connect up to 5 permanent devices across laptops, desktops & phones
+              </span>
             </motion.li>
             <motion.li
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5 }}
-              className="flex items-center gap-2.5 sm:gap-3"
+              className="flex items-start gap-2.5 sm:gap-3"
             >
-              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent">
-                <Check size={13} />
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-cream text-accent mt-0.5">
+                <Check size={12} strokeWidth={2.5} />
               </span>
-              <span>Guest session clipboard history links smoothly after sign-in</span>
+              <span className="flex-1 min-w-0 break-words leading-relaxed">
+                Guest session clipboard history links smoothly after sign-in
+              </span>
             </motion.li>
           </ul>
         </motion.div>
@@ -171,9 +179,9 @@ export default function LoginPage() {
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="order-1 lg:order-2 w-full max-w-md justify-self-center"
+          className="order-1 lg:order-2 w-full max-w-md justify-self-center min-w-0"
         >
-          <SpotlightCard className="!p-6 sm:!p-9 border-border bg-white/95 backdrop-blur-md shadow-[0_20px_50px_rgb(41_40_36_/_0.08)]">
+          <SpotlightCard className="!p-5 sm:!p-8 border-border bg-white/95 backdrop-blur-md shadow-[0_20px_50px_rgb(41_40_36_/_0.08)] w-full max-w-full overflow-hidden">
             <div className="grid size-11 place-items-center rounded-xl bg-cream text-accent shadow-2xs">
               <ShieldCheck size={22} />
             </div>
@@ -185,7 +193,7 @@ export default function LoginPage() {
               Choose your Google account to access your permanent workspace.
             </p>
 
-            <div className="mt-6">
+            <div className="mt-6 w-full max-w-full overflow-hidden">
               <GoogleSignInButton />
             </div>
 
@@ -197,6 +205,9 @@ export default function LoginPage() {
           </SpotlightCard>
         </motion.div>
       </section>
+
+      {/* Footer spacer */}
+      <div className="h-4" />
     </main>
   );
 }

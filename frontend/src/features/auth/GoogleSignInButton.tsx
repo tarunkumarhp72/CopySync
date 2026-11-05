@@ -30,7 +30,9 @@ export function GoogleSignInButton() {
             if (!response.ok) { setError((await response.json().catch(() => null))?.detail ?? "Google sign-in could not be completed."); return; }
             window.location.assign("/dashboard");
           }});
-          window.google.accounts.id.renderButton(mount.current, { theme: "outline", size: "large", type: "standard", shape: "rectangular", text: "continue_with", width: 360, logo_alignment: "left" });
+          const containerWidth = mount.current?.parentElement?.clientWidth || mount.current?.clientWidth || 280;
+          const buttonWidth = Math.min(360, Math.max(220, Math.floor(containerWidth)));
+          window.google.accounts.id.renderButton(mount.current, { theme: "outline", size: "large", type: "standard", shape: "rectangular", text: "continue_with", width: buttonWidth, logo_alignment: "left" });
           window.google.accounts.id.prompt();
           setReady(true);
         };
@@ -45,5 +47,5 @@ export function GoogleSignInButton() {
   }, []);
 
   const fallback = () => window.location.assign(`${api}/auth/google/login`);
-  return <div className="space-y-3"><div ref={mount} className="min-h-11 [&>div]:!w-full" />{!ready && !error && <button className="motion-button w-full rounded-lg border border-border bg-white px-4 py-3 text-sm font-medium" onClick={fallback}>Continue with Google</button>}{error && <><p role="alert" className="text-sm text-red-700">{error}</p><button className="motion-button w-full rounded-lg border border-border bg-white px-4 py-3 text-sm font-medium" onClick={fallback}>Use Google redirect sign-in</button></>}</div>;
+  return <div className="space-y-3 w-full max-w-full"><div ref={mount} className="min-h-11 w-full max-w-full flex justify-center overflow-hidden [&>div]:!max-w-full [&_iframe]:!max-w-full" />{!ready && !error && <button className="motion-button w-full rounded-lg border border-border bg-white px-4 py-3 text-sm font-medium" onClick={fallback}>Continue with Google</button>}{error && <><p role="alert" className="text-sm text-red-700">{error}</p><button className="motion-button w-full rounded-lg border border-border bg-white px-4 py-3 text-sm font-medium" onClick={fallback}>Use Google redirect sign-in</button></>}</div>;
 }

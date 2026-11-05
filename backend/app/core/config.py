@@ -1,7 +1,8 @@
+import os
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal, Optional
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,7 +16,18 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    DATABASE_URL: str
+    SUPABASE_DATABASE_URL: Optional[str] = None
+    DATABASE_URL: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _resolve_database_url(cls, data: Any) -> Any:
+        supabase_url = os.getenv("SUPABASE_DATABASE_URL")
+        if isinstance(data, dict):
+            supabase_url = data.get("SUPABASE_DATABASE_URL") or supabase_url
+            if supabase_url:
+                data["DATABASE_URL"] = supabase_url
+        return data
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -23,9 +35,12 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             v_stripped = v.strip()
             if v_stripped.startswith("postgres://"):
-                return v_stripped.replace("postgres://", "postgresql+asyncpg://", 1)
-            if v_stripped.startswith("postgresql://") and not v_stripped.startswith("postgresql+"):
-                return v_stripped.replace("postgresql://", "postgresql+asyncpg://", 1)
+                v_stripped = v_stripped.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif v_stripped.startswith("postgresql://") and not v_stripped.startswith("postgresql+"):
+                v_stripped = v_stripped.replace("postgresql://", "postgresql+asyncpg://", 1)
+            if "sslmode=" in v_stripped:
+                v_stripped = v_stripped.replace("sslmode=", "ssl=")
+            return v_stripped
         return v
 
     GOOGLE_CLIENT_ID: str

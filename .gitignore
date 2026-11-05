@@ -93,3 +93,6 @@ Desktop.ini
 prompt*
 test_*.py
 scratch/
+
+.agents/
+skills-lock.json

@@ -30,9 +30,12 @@ function ConnectContent() {
   const [hasPastedSuccess, setHasPastedSuccess] = useState(false);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "typing" | "synced">("idle");
 
   const wsRef = useRef<WebSocket | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef(false);
 
   // Broadcast clipboard updates to WebSocket
   const sendUpdate = (text: string) => {
@@ -42,9 +45,11 @@ function ConnectContent() {
   };
 
   const sendClear = () => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "clipboard.cleared" }));
     }
+    setSyncStatus("idle");
   };
 
   // Check if permission was already granted in this browser session
@@ -106,9 +111,16 @@ function ConnectContent() {
           try {
             const msg = JSON.parse(event.data);
             if (msg.type === "clipboard.updated" && typeof msg.content === "string") {
-              setContent(msg.content);
+              // Only update if user is not actively typing locally to avoid cursor jump / scrambling
+              if (!isTypingRef.current) {
+                setContent(msg.content);
+                setSyncStatus("synced");
+              }
             } else if (msg.type === "clipboard.cleared") {
-              setContent("");
+              if (!isTypingRef.current) {
+                setContent("");
+                setSyncStatus("idle");
+              }
             }
           } catch {
             // Ignore unparseable frames
@@ -134,6 +146,7 @@ function ConnectContent() {
     return () => {
       isMounted = false;
       if (pingInterval) clearInterval(pingInterval);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -141,11 +154,34 @@ function ConnectContent() {
     };
   }, [token]);
 
-  // Handle typing or pasting in the textarea
+  // Handle typing with a 1.8-2.0 second debounce so mobile typing is 100% smooth and never scrambled
   const handleContentChange = (newText: string) => {
     setContent(newText);
-    sendUpdate(newText);
     setPasteNotice(null);
+    setSyncStatus("typing");
+    isTypingRef.current = true;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      sendUpdate(newText);
+      isTypingRef.current = false;
+      setSyncStatus("synced");
+      setTimeout(() => setSyncStatus("idle"), 2500);
+    }, 1800);
+  };
+
+  // Immediate sync button (sends right away without waiting for debounce)
+  const handleSyncImmediately = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    sendUpdate(content);
+    isTypingRef.current = false;
+    setSyncStatus("synced");
+    setTimeout(() => setSyncStatus("idle"), 2500);
   };
 
   // Request native permission and read clipboard on user gesture
@@ -160,11 +196,15 @@ function ConnectContent() {
       setShowPermissionPrompt(false);
 
       if (text) {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        isTypingRef.current = false;
         const trimmed = text.length > 20000 ? text.slice(0, 20000) : text;
         setContent(trimmed);
         sendUpdate(trimmed);
+        setSyncStatus("synced");
         setHasPastedSuccess(true);
         setTimeout(() => setHasPastedSuccess(false), 2500);
+        setTimeout(() => setSyncStatus("idle"), 2500);
       } else {
         setPasteNotice("Clipboard is currently empty on your phone. Copy something or type below!");
         setTimeout(() => setPasteNotice(null), 4000);
@@ -190,11 +230,15 @@ function ConnectContent() {
       const text = await navigator.clipboard.readText();
       setPermissionGranted(true);
       if (text) {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        isTypingRef.current = false;
         const trimmed = text.length > 20000 ? text.slice(0, 20000) : text;
         setContent(trimmed);
         sendUpdate(trimmed);
+        setSyncStatus("synced");
         setHasPastedSuccess(true);
         setTimeout(() => setHasPastedSuccess(false), 2000);
+        setTimeout(() => setSyncStatus("idle"), 2500);
       } else {
         setPasteNotice("Your phone clipboard is currently empty.");
         setTimeout(() => setPasteNotice(null), 3000);
@@ -315,11 +359,25 @@ function ConnectContent() {
             <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <span>Shared Clipboard Text</span>
             </label>
-            {content && (
-              <span className="text-[11px] font-mono text-muted">
-                {content.length} characters
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {syncStatus === "typing" && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
+                  <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Syncs in 2s
+                </span>
+              )}
+              {syncStatus === "synced" && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                  <Check size={11} strokeWidth={2.5} />
+                  Synced to Laptop
+                </span>
+              )}
+              {content && (
+                <span className="text-[11px] font-mono text-muted">
+                  {content.length} chars
+                </span>
+              )}
+            </div>
           </div>
 
           <textarea
@@ -329,6 +387,19 @@ function ConnectContent() {
             placeholder="Type or paste links, OTPs, or text here to sync live to your laptop..."
             className="flex-1 w-full min-h-[220px] resize-none rounded-2xl border border-border bg-[#FAF9F6] p-3.5 text-sm outline-none transition focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 placeholder:text-muted leading-relaxed"
           />
+
+          {/* Instant Sync shortcut when user is typing */}
+          {syncStatus === "typing" && (
+            <div className="mt-2.5">
+              <button
+                onClick={handleSyncImmediately}
+                className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white py-2 text-xs font-semibold shadow-xs transition active:scale-[0.98]"
+              >
+                <Zap size={14} />
+                <span>Sync Now (Don&apos;t wait 2s)</span>
+              </button>
+            </div>
+          )}
 
           {/* Paste Help Tip for Mobile */}
           <AnimatePresence>

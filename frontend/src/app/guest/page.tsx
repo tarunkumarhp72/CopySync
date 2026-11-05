@@ -16,6 +16,8 @@ import {
   Sparkles,
   Trash2,
   CheckCheck,
+  FilePlus2,
+  ArrowDown,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Turnstile } from "@/components/Turnstile";
@@ -24,6 +26,7 @@ import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
 
 type GuestSession = { id: string; token: string; status: string; expires_at: string };
 type ClipItem = { id: string; text: string; time: string };
+type GuestNote = { id: string; title: string; content: string; updatedAt: string };
 
 const api = process.env.NEXT_PROD_API_URL;
 const TOTAL_DURATION_SECONDS = 300; // 5 minute standard expiry
@@ -35,12 +38,24 @@ export default function GuestPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [incomingText, setIncomingText] = useState("");
   const [clips, setClips] = useState<ClipItem[]>([]);
   const [hasCopied, setHasCopied] = useState(false);
   const [copiedClipId, setCopiedClipId] = useState<string | null>(null);
   const [autoCopy, setAutoCopy] = useState(false);
   const [isReceiverDisconnected, setIsReceiverDisconnected] = useState(false);
+
+  // Guest Notes state
+  const [notes, setNotes] = useState<GuestNote[]>([
+    {
+      id: "note-1",
+      title: "Live Mobile Note",
+      content: "",
+      updatedAt: "Ready",
+    },
+  ]);
+  const [activeNoteId, setActiveNoteId] = useState<string>("note-1");
+  const activeNoteIdRef = useRef(activeNoteId);
+  activeNoteIdRef.current = activeNoteId;
 
   const wsRef = useRef<WebSocket | null>(null);
   const autoCopyRef = useRef(autoCopy);
@@ -52,7 +67,6 @@ export default function GuestPage() {
     setError(undefined);
     setIsRefreshing(true);
     setIsConnected(false);
-    setIncomingText("");
     setClips([]);
     setIsReceiverDisconnected(false);
 
@@ -123,7 +137,13 @@ export default function GuestPage() {
 
         // When clipboard is updated from phone
         if (data.type === "clipboard.updated" && typeof data.content === "string") {
-          setIncomingText(data.content);
+          setNotes((prevNotes) =>
+            prevNotes.map((n) =>
+              n.id === activeNoteIdRef.current
+                ? { ...n, content: data.content, updatedAt: "Synced from phone" }
+                : n
+            )
+          );
           const newClip: ClipItem = {
             id: crypto.randomUUID(),
             text: data.content,
@@ -139,7 +159,13 @@ export default function GuestPage() {
 
         // When clipboard is cleared from phone
         if (data.type === "clipboard.cleared") {
-          setIncomingText("");
+          setNotes((prevNotes) =>
+            prevNotes.map((n) =>
+              n.id === activeNoteIdRef.current
+                ? { ...n, content: "", updatedAt: "Cleared" }
+                : n
+            )
+          );
         }
 
         // When phone leaves
@@ -181,7 +207,6 @@ export default function GuestPage() {
     }
     setSession(undefined);
     setIsConnected(false);
-    setIncomingText("");
   };
 
   const copyToClipboard = async (text: string, clipId?: string) => {
@@ -198,6 +223,68 @@ export default function GuestPage() {
     } catch {
       // Fallback
     }
+  };
+
+  const currentActiveNote = useMemo(
+    () => notes.find((n) => n.id === activeNoteId) || notes[0],
+    [notes, activeNoteId]
+  );
+
+  const handleNoteContentChange = (newContent: string) => {
+    setNotes((prev) =>
+      prev.map((n) =>
+        n.id === activeNoteId ? { ...n, content: newContent, updatedAt: "Edited locally" } : n
+      )
+    );
+  };
+
+  const handleNoteTitleChange = (newTitle: string) => {
+    setNotes((prev) =>
+      prev.map((n) => (n.id === activeNoteId ? { ...n, title: newTitle } : n))
+    );
+  };
+
+  const handleNewNote = () => {
+    const newId = `note-${Date.now()}`;
+    const newNote: GuestNote = {
+      id: newId,
+      title: `Note ${notes.length + 1}`,
+      content: "",
+      updatedAt: "Just now",
+    };
+    setNotes((prev) => [newNote, ...prev]);
+    setActiveNoteId(newId);
+  };
+
+  const handleDeleteNote = (idToDelete: string) => {
+    if (notes.length <= 1) {
+      setNotes([
+        {
+          id: "note-1",
+          title: "Live Mobile Note",
+          content: "",
+          updatedAt: "Cleared",
+        },
+      ]);
+      setActiveNoteId("note-1");
+      return;
+    }
+    const remainingNotes = notes.filter((n) => n.id !== idToDelete);
+    setNotes(remainingNotes);
+    if (activeNoteId === idToDelete) {
+      setActiveNoteId(remainingNotes[0].id);
+    }
+  };
+
+  const handleDownloadNote = () => {
+    if (!currentActiveNote) return;
+    const blob = new Blob([currentActiveNote.content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${currentActiveNote.title.toLowerCase().replace(/[^a-z0-9]/g, "_") || "note"}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const minutes = Math.floor(remaining / 60);
@@ -377,236 +464,254 @@ export default function GuestPage() {
             </motion.div>
           ) : (
             /* =========================================================================
-               STATE B: CONNECTED! (EXACT USER DESIGN + REAL-TIME CLIPBOARD WORKSPACE)
+               STATE B: CONNECTED! (GUEST NOTES WORKSPACE WITH LIVE MOBILE STREAMING)
                ========================================================================= */
             <motion.div
-              key="connected-view"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.4 }}
-              className="grid gap-8 lg:grid-cols-12 items-start"
+              key="connected-notes-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.35 }}
+              className="w-full flex-1 flex flex-col space-y-4"
             >
-              {/* Left Column (5 Cols): The Exact "Connection Established" Success Card */}
-              <div className="lg:col-span-5 flex flex-col items-center w-full">
-                <div className="w-full rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-sm text-center">
-                  {/* Green Pill Header */}
-                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-xs font-medium text-emerald-700 shadow-2xs">
-                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Connected</span>
+              {/* Top Banner: Connection Established & Active Session */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3.5 sm:p-4 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="relative grid size-10 place-items-center rounded-xl bg-emerald-500 text-white shadow-xs">
+                    <Check size={20} strokeWidth={2.8} />
                   </div>
-
-                  {/* Big Green Checkmark with Celebration Rays */}
-                  <div className="relative my-6 flex items-center justify-center">
-                    {/* Celebration Ray Accents */}
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.1, duration: 0.3 }}
-                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                    >
-                      {/* Top left ray */}
-                      <span className="absolute -top-3 left-10 h-3 w-1 rounded-full bg-emerald-400 rotate-[-25deg]" />
-                      <span className="absolute top-2 left-4 h-1 w-3 rounded-full bg-emerald-400 rotate-[-15deg]" />
-                      {/* Top right ray */}
-                      <span className="absolute -top-3 right-10 h-3 w-1 rounded-full bg-emerald-400 rotate-[25deg]" />
-                      <span className="absolute top-2 right-4 h-1 w-3 rounded-full bg-emerald-400 rotate-[15deg]" />
-                    </motion.div>
-
-                    {/* Big Check Circle */}
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                      className="size-24 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25"
-                    >
-                      <Check size={48} strokeWidth={3.2} />
-                    </motion.div>
-                  </div>
-
-                  {/* Title & Subtitle */}
-                  <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-2xl">
-                    Connection Established!
-                  </h2>
-                  <p className="mt-1.5 text-xs sm:text-sm text-muted">
-                    Your device is now connected successfully.
-                  </p>
-
-                  {/* Session Active Box */}
-                  <div className="mt-6 flex items-center gap-3.5 rounded-2xl border border-emerald-200/90 bg-emerald-50/60 p-4 text-left">
-                    <div className="relative grid size-12 shrink-0 place-items-center rounded-xl bg-white border border-emerald-200 text-emerald-600 shadow-2xs">
-                      <Laptop size={22} strokeWidth={2.2} />
-                      <span className="absolute -bottom-1 -right-1 grid size-4 place-items-center rounded-full bg-emerald-500 text-white">
-                        <Check size={10} strokeWidth={3} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-bold text-emerald-950">
+                        Connection Established!
+                      </h3>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                        <Smartphone size={11} className="text-emerald-700" />
+                        <span>Live Phone Paired</span>
                       </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs sm:text-sm font-semibold text-foreground">
-                        Session Active
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
-                        <span>Expires in:</span>
-                        <Clock size={12} className="text-emerald-600" />
-                        <span className="font-mono font-semibold text-foreground">
-                          {minutes}:{seconds}
-                        </span>
-                      </div>
-                    </div>
+                    <p className="text-xs text-emerald-800/80 mt-0.5">
+                      Text typed or pasted on your phone streams directly into your guest note below.
+                    </p>
                   </div>
+                </div>
 
-                  {isReceiverDisconnected && (
-                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                      Mobile device disconnected. You can scan again or wait for reconnect.
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="mt-6 flex items-center gap-3 pt-2">
-                    <button
-                      onClick={() => void create()}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-border bg-white py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-foreground hover:bg-cream/60 transition shadow-2xs"
-                    >
-                      <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-                      <span>Scan Again</span>
-                    </button>
-                    <button
-                      onClick={() => void cancel()}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-white hover:bg-emerald-700 transition shadow-2xs"
-                    >
-                      <X size={14} />
-                      <span>End Session</span>
-                    </button>
+                <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                  <div className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-xs text-muted shadow-2xs">
+                    <Clock size={13} className="text-emerald-600" />
+                    <span>Session:</span>
+                    <span className="font-mono font-bold text-foreground">
+                      {minutes}:{seconds}
+                    </span>
                   </div>
+                  <button
+                    onClick={() => void cancel()}
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 text-xs font-semibold shadow-2xs transition"
+                  >
+                    <X size={13} />
+                    <span>End Session</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Right Column (7 Cols): Real-Time Live Clipboard Display */}
-              <div className="lg:col-span-7 flex flex-col w-full space-y-4">
-                <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-7 shadow-sm">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between border-b border-border/80 pb-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className="grid size-9 place-items-center rounded-xl bg-accent/10 text-accent">
-                        <Smartphone size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground">
-                          Mobile Live Clipboard
-                        </h3>
-                        <p className="text-[11px] text-muted">
-                          Text copied or typed on phone appears here in real-time
-                        </p>
-                      </div>
+              {/* Disconnection Warning if Phone Left */}
+              {isReceiverDisconnected && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                  <span>Mobile device was disconnected. You can scan again or wait for reconnect.</span>
+                </div>
+              )}
+
+              {/* Main Notes Workspace Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 flex-1 items-start">
+                {/* Left Column (3.5 cols on desktop): Notes Navigation */}
+                <div className="md:col-span-4 lg:col-span-3.5 space-y-3">
+                  <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        Guest Notes
+                      </span>
+                      <button
+                        onClick={handleNewNote}
+                        className="flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent/80 transition"
+                      >
+                        <FilePlus2 size={13} />
+                        <span>New Note</span>
+                      </button>
                     </div>
 
-                    {/* Auto-copy Toggle */}
-                    <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted hover:text-foreground">
+                    <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                      {notes.map((note) => {
+                        const isCurrent = note.id === activeNoteId;
+                        return (
+                          <div
+                            key={note.id}
+                            onClick={() => setActiveNoteId(note.id)}
+                            className={`w-full text-left rounded-xl p-2.5 transition flex items-center justify-between gap-2 border cursor-pointer ${
+                              isCurrent
+                                ? "bg-accent/10 border-accent/40 text-foreground font-semibold"
+                                : "bg-white border-border/70 text-muted hover:bg-cream/40"
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs truncate flex items-center gap-1.5">
+                                <span
+                                  className={`size-1.5 rounded-full ${
+                                    isCurrent ? "bg-emerald-500 animate-pulse" : "bg-muted/40"
+                                  }`}
+                                />
+                                <span className="truncate">{note.title || "Untitled Note"}</span>
+                              </div>
+                              <span className="text-[10px] text-muted/70 block mt-0.5 font-normal">
+                                {note.content ? `${note.content.length} characters` : "Empty note"}
+                              </span>
+                            </div>
+                            {notes.length > 1 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteNote(note.id);
+                                }}
+                                className="p-1 rounded-md text-muted hover:text-red-600 transition"
+                                title="Delete note"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Auto-copy toggle card */}
+                  <div className="rounded-2xl border border-border bg-card p-3.5 shadow-2xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Laptop size={15} className="text-accent" />
+                      <span className="text-xs font-medium text-foreground">Auto-copy to PC</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         checked={autoCopy}
                         onChange={(e) => setAutoCopy(e.target.checked)}
-                        className="size-4 rounded border-border text-accent focus:ring-accent"
+                        className="sr-only peer"
                       />
-                      <span className="hidden sm:inline">Auto-copy to PC</span>
+                      <div className="w-8 h-4 bg-muted/30 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600" />
                     </label>
                   </div>
 
-                  {/* Live Clipboard Content Box */}
-                  <div className="mt-5">
-                    {incomingText ? (
-                      <div className="space-y-4">
-                        <div className="relative rounded-2xl border border-border bg-[#FAF9F6] p-4 sm:p-5">
-                          <div className="flex items-center justify-between text-xs text-muted mb-2">
-                            <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                              Latest arrival
-                            </span>
-                            <span className="font-mono text-[11px]">{incomingText.length} characters</span>
-                          </div>
-                          <pre className="text-sm sm:text-base font-sans text-foreground whitespace-pre-wrap break-words max-h-72 overflow-y-auto leading-relaxed select-all">
-                            {incomingText}
-                          </pre>
-                        </div>
+                  {/* Scan again link */}
+                  <div className="text-center pt-1">
+                    <button
+                      onClick={() => void create()}
+                      className="text-xs text-muted hover:text-foreground transition underline underline-offset-4"
+                    >
+                      Connect another device / Scan again
+                    </button>
+                  </div>
+                </div>
 
-                        {/* Copy to Computer Button */}
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => void copyToClipboard(incomingText)}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-xs sm:text-sm font-medium transition active:scale-[0.99] shadow-xs ${
-                              hasCopied
-                                ? "bg-emerald-600 text-white"
-                                : "bg-accent text-white hover:bg-accent/90"
-                            }`}
-                          >
-                            {hasCopied ? (
-                              <>
-                                <CheckCheck size={16} />
-                                <span>Copied to Laptop Clipboard!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy size={16} />
-                                <span>Copy to Laptop Clipboard (Ctrl+V)</span>
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setIncomingText("")}
-                            className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-white px-3.5 py-3 text-xs text-muted hover:text-foreground transition"
-                            title="Clear"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Empty State */
-                      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-12 px-4 text-center">
-                        <div className="grid size-12 place-items-center rounded-2xl bg-cream text-accent mb-3">
-                          <Sparkles size={22} />
-                        </div>
-                        <h4 className="text-sm font-medium text-foreground">
-                          Waiting for phone clipboard...
-                        </h4>
-                        <p className="mt-1 text-xs text-muted max-w-sm">
-                          Tap <span className="font-semibold text-foreground">&quot;Paste from phone&quot;</span> or type any link, snippet, or text on your mobile screen to view it here live!
-                        </p>
-                      </div>
-                    )}
+                {/* Right Column (8.5 cols): The Active Note Editor */}
+                <div className="md:col-span-8 lg:col-span-8.5 rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-sm flex flex-col min-h-[460px]">
+                  {/* Note Header / Title & Actions */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-4">
+                    <div className="flex-1 min-w-[200px]">
+                      <input
+                        value={currentActiveNote?.title || ""}
+                        onChange={(e) => handleNoteTitleChange(e.target.value)}
+                        placeholder="Note title..."
+                        className="text-lg sm:text-xl font-bold text-foreground bg-transparent outline-none w-full border-b border-transparent focus:border-accent/40"
+                      />
+                      <span className="text-[11px] text-muted flex items-center gap-1.5 mt-0.5">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live streaming from phone • {currentActiveNote?.updatedAt}
+                      </span>
+                    </div>
+
+                    {/* Toolbar Actions */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => void copyToClipboard(currentActiveNote?.content || "")}
+                        disabled={!currentActiveNote?.content}
+                        className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition active:scale-[0.98] shadow-2xs disabled:opacity-40 ${
+                          hasCopied
+                            ? "bg-emerald-600 text-white"
+                            : "bg-accent text-white hover:bg-accent/90"
+                        }`}
+                      >
+                        {hasCopied ? (
+                          <>
+                            <CheckCheck size={14} />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={14} />
+                            <span>Copy Note (Ctrl+C)</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={handleDownloadNote}
+                        disabled={!currentActiveNote?.content}
+                        className="p-2 rounded-xl border border-border bg-white text-muted hover:text-foreground hover:bg-cream/50 transition disabled:opacity-40"
+                        title="Download Note (.txt)"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => handleNoteContentChange("")}
+                        disabled={!currentActiveNote?.content}
+                        className="p-2 rounded-xl border border-border bg-white text-muted hover:text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                        title="Clear Note content"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* History of Received Clips */}
-                  {clips.length > 1 && (
-                    <div className="mt-6 pt-5 border-t border-border/80">
-                      <div className="flex items-center justify-between text-xs font-semibold text-foreground mb-3">
-                        <span>Recent Clips ({clips.length})</span>
+                  {/* Note Body Editor */}
+                  <div className="flex-1 mt-4 flex flex-col">
+                    {!currentActiveNote?.content && (
+                      <div className="flex items-center gap-2 text-xs text-muted mb-3 bg-cream/40 p-3 rounded-xl border border-dashed border-border/80">
+                        <Sparkles size={15} className="text-accent shrink-0" />
+                        <span>
+                          Empty guest note. Tap &quot;Paste from phone&quot; or type on your mobile screen to stream text directly here.
+                        </span>
                       </div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        {clips.slice(1).map((clip) => (
+                    )}
+                    <textarea
+                      value={currentActiveNote?.content || ""}
+                      onChange={(e) => handleNoteContentChange(e.target.value)}
+                      placeholder="Start typing on your phone or paste text to see it appear here in real-time... You can also type directly in this note on your laptop."
+                      className="flex-1 w-full min-h-[320px] resize-none rounded-2xl border border-border bg-[#FAF9F6] p-4 text-sm sm:text-base outline-none transition focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10 placeholder:text-muted leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Recent snippets history tray */}
+                  {clips.length > 1 && (
+                    <div className="mt-4 pt-3 border-t border-border/80">
+                      <div className="flex items-center justify-between text-xs font-semibold text-muted mb-2">
+                        <span>Recent Phone Snippets ({clips.length})</span>
+                      </div>
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+                        {clips.slice(1, 6).map((clip) => (
                           <div
                             key={clip.id}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-white p-2.5 sm:p-3 text-xs hover:border-accent/40 transition"
+                            className="flex items-center gap-1.5 rounded-lg border border-border bg-white px-2.5 py-1 text-xs shrink-0 max-w-[220px]"
                           >
-                            <span className="truncate flex-1 font-mono text-muted text-[11px] sm:text-xs">
+                            <span className="truncate text-muted text-[11px] font-mono">
                               {clip.text}
                             </span>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[10px] text-muted/70">{clip.time}</span>
-                              <button
-                                onClick={() => void copyToClipboard(clip.text, clip.id)}
-                                className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted hover:text-foreground hover:bg-cream/50 transition"
-                              >
-                                {copiedClipId === clip.id ? (
-                                  <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                                    <Check size={11} /> Copied
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1">
-                                    <Copy size={11} /> Copy
-                                  </span>
-                                )}
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => void copyToClipboard(clip.text, clip.id)}
+                              className="text-[10px] font-semibold text-accent hover:underline shrink-0"
+                            >
+                              {copiedClipId === clip.id ? "Copied" : "Copy"}
+                            </button>
                           </div>
                         ))}
                       </div>

@@ -55,7 +55,7 @@ async def guest_websocket(websocket: WebSocket, session_id: str, token: str, rol
             if event["type"] == "ping":
                 await websocket.send_json({"type": "pong"})
                 continue
-            await manager.broadcast(channel, {**event, "timestamp": datetime.now(timezone.utc).isoformat()})
+            await manager.broadcast(channel, {**event, "timestamp": datetime.now(timezone.utc).isoformat()}, exclude=websocket)
     except WebSocketDisconnect:
         manager.disconnect(channel, websocket)
         await manager.broadcast(channel, {"type": f"session.{role}_left", "session_id": session_id})

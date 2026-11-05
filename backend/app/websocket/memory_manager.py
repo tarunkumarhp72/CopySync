@@ -16,8 +16,10 @@ class InMemoryConnectionManager:
         if not self.channels[channel]:
             self.channels.pop(channel, None)
 
-    async def broadcast(self, channel: str, event: dict) -> None:
+    async def broadcast(self, channel: str, event: dict, exclude: WebSocket | None = None) -> None:
         for websocket in list(self.channels.get(channel, set())):
+            if exclude and websocket is exclude:
+                continue
             await websocket.send_json(event)
 
     def role_in_use(self, channel: str, role: str) -> bool:

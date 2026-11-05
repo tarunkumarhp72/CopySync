@@ -38,7 +38,10 @@ async def _establish_session(request: Request, db: AsyncSession, claims: dict, r
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Google account is not eligible for sign-in")
     user = await get_or_create_user(db, google_id=claims["sub"], email=claims["email"], name=claims.get("name"))
     _, new_device_token = await get_or_create_device(db, user, request.cookies.get("copysync_device"))
-    guest_workspace_token = request.cookies.get("copysync_guest_workspace")
+    guest_workspace_token = (
+        request.headers.get("X-Guest-Workspace-Token")
+        or request.cookies.get("copysync_guest_workspace")
+    )
     if guest_workspace_token:
         await claim_workspace(db, guest_workspace_token, user.id)
     response.delete_cookie("copysync_guest_workspace", samesite="none", secure=True)

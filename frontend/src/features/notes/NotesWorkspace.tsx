@@ -1,26 +1,64 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FilePlus2, LogOut, Menu, NotebookPen, Search, Trash2, X, Check, AlertCircle } from "lucide-react";
+import {
+  FilePlus2,
+  LogOut,
+  Menu,
+  NotebookPen,
+  Search,
+  Trash2,
+  X,
+  Check,
+  AlertCircle,
+  Sparkles,
+  Smartphone,
+} from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { notesService } from "@/services/notes.service";
 import type { Note, NoteListItem } from "@/types/note";
 import { RichTextEditor } from "@/features/notes/RichTextEditor";
+import { GuestLimitModal } from "@/features/notes/GuestLimitModal";
 import { motion, AnimatePresence } from "motion/react";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-export function NotesWorkspace() {
+interface NotesWorkspaceProps {
+  isGuestMode?: boolean;
+  guestSessionId?: string;
+  guestToken?: string;
+  onEndGuestSession?: () => void;
+}
+
+export function NotesWorkspace({
+  isGuestMode,
+  guestSessionId,
+  guestToken,
+  onEndGuestSession,
+}: NotesWorkspaceProps = {}) {
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [active, setActive] = useState<Note>();
   const [query, setQuery] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [isEndingSession, setIsEndingSession] = useState(false);
 
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const activeRef = useRef<Note>();
   activeRef.current = active;
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Check guest state from prop or local storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hasUserToken = Boolean(localStorage.getItem("copysync_token"));
+      const hasGuestToken = Boolean(localStorage.getItem("copysync_guest_token"));
+      setIsGuest(isGuestMode ?? (!hasUserToken && hasGuestToken));
+    }
+  }, [isGuestMode]);
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +77,60 @@ export function NotesWorkspace() {
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
   }, []);
+
+  // WebSocket connection for live phone streaming into active note
+  useEffect(() => {
+    const api = process.env.NEXT_PROD_API_URL;
+    if (!guestSessionId || !guestToken || !api) return;
+
+    const wsUrl =
+      api.replace(/^http/, "ws") +
+      `/ws/guest/${guestSessionId}?token=${encodeURIComponent(guestToken)}&role=sender`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 25000);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "clipboard.updated" && typeof data.content === "string") {
+          const current = activeRef.current;
+          if (current) {
+            const next = { ...current, content: data.content };
+            setActive(next);
+            persist(next);
+          } else {
+            // If no active note, create one and set content
+            void (async () => {
+              try {
+                const newNote = await notesService.create();
+                const next = { ...newNote, content: data.content };
+                setActive(next);
+                setNotes((items) => [next, ...items.filter((i) => i.id !== next.id)]);
+                persist(next);
+              } catch {
+                // limit reached or failed
+              }
+            })();
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    return () => {
+      clearInterval(pingInterval);
+      ws.close();
+      wsRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestSessionId, guestToken]);
 
   const select = async (id: string) => {
     try {
@@ -80,13 +172,24 @@ export function NotesWorkspace() {
   };
 
   const create = async () => {
+    // Guest limit: maximum 3 notes
+    if (isGuest && notes.length >= 3) {
+      setShowLimitModal(true);
+      return;
+    }
+
     try {
       const note = await notesService.create();
       setNotes((items) => [note, ...items]);
       setActive(note);
       setSidebarOpen(false);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not create note.");
+    } catch (cause: unknown) {
+      // @ts-expect-error status check
+      if (cause?.status === 429 || (cause instanceof Error && cause.message.toLowerCase().includes("limit"))) {
+        setShowLimitModal(true);
+      } else {
+        setError(cause instanceof Error ? cause.message : "Could not create note.");
+      }
     }
   };
 
@@ -110,8 +213,38 @@ export function NotesWorkspace() {
     } finally {
       if (typeof window !== "undefined") {
         localStorage.removeItem("copysync_token");
+        localStorage.removeItem("copysync_guest_token");
       }
       location.assign("/login");
+    }
+  };
+
+  const endGuestSession = async () => {
+    if (!confirm("End this guest session? All unsaved guest notes will be cleared.")) {
+      return;
+    }
+    setIsEndingSession(true);
+    try {
+      await apiFetch<void>("/guest-workspace", { method: "DELETE" }).catch(() => {});
+      if (guestSessionId && guestToken) {
+        await apiFetch<void>(`/guest/session/${guestSessionId}`, {
+          method: "DELETE",
+          body: JSON.stringify({ token: guestToken }),
+        }).catch(() => {});
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("copysync_guest_token");
+      }
+      if (onEndGuestSession) {
+        onEndGuestSession();
+      } else {
+        location.assign("/");
+      }
     }
   };
 
@@ -140,63 +273,54 @@ export function NotesWorkspace() {
       {/* New Note Button */}
       <motion.button
         whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: 0.98 }}
         onClick={() => void create()}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-sm bg-accent py-2.5 text-sm font-medium text-white shadow-xs transition hover:bg-accent/90"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-xs hover:bg-accent/90 transition"
       >
         <FilePlus2 size={16} />
         <span>New note</span>
       </motion.button>
 
-      {/* Search Bar */}
-      <label className="mt-4 flex items-center gap-2 rounded-sm border border-border bg-white px-3 py-2 transition focus-within:border-accent">
-        <Search size={15} className="text-muted shrink-0" />
+      {/* Search Input */}
+      <div className="relative mt-3">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted"
-          placeholder="Search notes…"
+          placeholder="Search notes..."
+          className="w-full rounded-sm border border-border bg-white py-2 pl-9 pr-3 text-xs text-foreground outline-none transition placeholder:text-muted/70 focus:border-accent"
         />
-      </label>
+      </div>
 
-      {/* Notes List with Smooth Layout Transitions */}
-      <nav className="mt-4 flex-1 space-y-1 overflow-y-auto pr-1">
+      {/* Notes List */}
+      <nav aria-label="Notes" className="mt-3 flex-1 overflow-y-auto space-y-1 pr-1">
         <AnimatePresence initial={false}>
-          {filteredNotes.map((note) => {
-            const isSelected = active?.id === note.id;
-            return (
-              <motion.div
-                key={note.id}
-                layout
-                initial={{ opacity: 0, height: 0, y: -6 }}
-                animate={{ opacity: 1, height: "auto", y: 0 }}
-                exit={{ opacity: 0, height: 0, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                className="relative"
+          {filteredNotes.map((note) => (
+            <motion.div
+              key={note.id}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+            >
+              <button
+                className={`group flex w-full items-center justify-between rounded-sm px-3 py-2.5 text-left text-xs transition ${
+                  active?.id === note.id
+                    ? "bg-accent/15 text-accent font-medium shadow-2xs"
+                    : "text-muted hover:bg-cream/60 hover:text-foreground"
+                }`}
+                onClick={() => void select(note.id)}
               >
-                <button
-                  onClick={() => void select(note.id)}
-                  className={`relative z-10 w-full rounded-sm px-3 py-2.5 text-left transition ${
-                    isSelected ? "text-foreground font-medium" : "text-muted hover:text-foreground hover:bg-cream/40"
-                  }`}
-                >
-                  <span className="block truncate text-sm">{note.title}</span>
-                  <span className="mt-0.5 block text-xs text-muted">
-                    Edited {new Date(note.updated_at).toLocaleDateString()}
-                  </span>
-                </button>
-
-                {/* Gliding selection pill */}
-                {isSelected && (
-                  <motion.div
-                    layoutId="active-note-indicator"
-                    className="absolute inset-0 rounded-sm bg-cream border border-border/60"
-                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                  />
-                )}
-              </motion.div>
-            );
-          })}
+                <span className="truncate pr-2">{note.title || "Untitled"}</span>
+                <span className="text-[10px] opacity-60 shrink-0">
+                  {new Date(note.updated_at).toLocaleDateString([], {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </button>
+            </motion.div>
+          ))}
         </AnimatePresence>
 
         {filteredNotes.length === 0 && (
@@ -206,16 +330,54 @@ export function NotesWorkspace() {
         )}
       </nav>
 
-      {/* Sign Out Button */}
-      <motion.button
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={() => void logout()}
-        className="mt-4 flex w-full items-center gap-2 rounded-sm border border-border bg-white px-3 py-2.5 text-sm font-medium text-muted hover:text-foreground hover:bg-cream transition"
-      >
-        <LogOut size={16} />
-        <span>Sign out</span>
-      </motion.button>
+      {/* Guest Status / Session Card */}
+      {isGuest ? (
+        <div className="mt-4 space-y-2 pt-2 border-t border-border/70">
+          <div className="rounded-xl border border-amber-200/90 bg-amber-50/70 p-3 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-amber-950">
+              <span className="flex items-center gap-1.5">
+                <Sparkles size={13} className="text-amber-700" />
+                <span>Guest Mode</span>
+              </span>
+              <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                {notes.length}/3 Notes
+              </span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-amber-800">
+              Temporary guest session. Sign in with Google to keep notes permanently.
+            </p>
+            <button
+              onClick={() => setShowLimitModal(true)}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-accent text-white py-1.5 text-xs font-semibold shadow-2xs hover:bg-accent/90 transition"
+            >
+              <Sparkles size={12} />
+              <span>Save Notes to Account</span>
+            </button>
+          </div>
+
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => void endGuestSession()}
+            disabled={isEndingSession}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50/70 py-2 text-xs font-medium text-red-700 hover:bg-red-100/70 transition disabled:opacity-50"
+          >
+            <X size={14} />
+            <span>End Session & Clear Data</span>
+          </motion.button>
+        </div>
+      ) : (
+        /* Authenticated Sign Out Button */
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => void logout()}
+          className="mt-4 flex w-full items-center gap-2 rounded-sm border border-border bg-white px-3 py-2.5 text-sm font-medium text-muted hover:text-foreground hover:bg-cream transition"
+        >
+          <LogOut size={16} />
+          <span>Sign out</span>
+        </motion.button>
+      )}
     </aside>
   );
 
@@ -260,62 +422,86 @@ export function NotesWorkspace() {
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 4 }}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-cream/60 px-2.5 py-1 text-xs font-medium text-accent border border-border/60"
+                      className="flex items-center gap-1.5 rounded-full bg-cream px-3 py-1 text-xs text-muted"
                     >
-                      <motion.span
-                        animate={{ rotate: 360 }}
-                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                        className="size-3 rounded-full border-2 border-accent border-t-transparent"
-                      />
-                      <span>Saving…</span>
+                      <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Saving changes...</span>
+                    </motion.div>
+                  ) : saveState === "saved" ? (
+                    <motion.div
+                      key="saved"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800"
+                    >
+                      <Check size={12} className="text-emerald-600" />
+                      <span>All changes saved</span>
                     </motion.div>
                   ) : saveState === "error" ? (
                     <motion.div
                       key="error"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 border border-red-200"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      className="flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs text-red-700"
                     >
-                      <AlertCircle size={13} className="text-red-600" />
-                      <span>Not saved</span>
+                      <AlertCircle size={12} />
+                      <span>Save error</span>
                     </motion.div>
                   ) : (
-                    <motion.div
-                      key="saved"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50/70 px-2.5 py-1 text-xs font-medium text-emerald-700 border border-emerald-200/50"
-                    >
-                      <Check size={13} className="text-emerald-600" />
+                    <div className="flex items-center gap-1.5 rounded-full bg-cream/50 px-3 py-1 text-xs text-muted">
+                      <Check size={12} />
                       <span>All changes saved</span>
-                    </motion.div>
+                    </div>
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* Guest Live Paired Indicator */}
+              {isGuest && (
+                <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-2.5 py-0.5 text-xs text-emerald-800 font-medium">
+                  <Smartphone size={12} className="text-emerald-700" />
+                  <span>Phone Connected • {notes.length}/3 Notes</span>
+                </div>
+              )}
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={!active}
-              onClick={() => void remove()}
-              className="p-2 text-muted hover:text-red-600 disabled:invisible transition"
-              title="Delete note"
-            >
-              <Trash2 size={18} />
-            </motion.button>
+            {/* Canvas Actions */}
+            <div className="flex items-center gap-2">
+              {isGuest && (
+                <button
+                  onClick={() => setShowLimitModal(true)}
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 hover:bg-accent/20 px-3 py-1.5 text-xs font-semibold text-accent transition"
+                >
+                  <Sparkles size={13} />
+                  <span>Sign in with Google</span>
+                </button>
+              )}
+
+              {active && (
+                <button
+                  onClick={() => void remove()}
+                  className="rounded-md p-2 text-muted hover:bg-cream hover:text-red-600 transition"
+                  title="Delete note"
+                  aria-label="Delete note"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
           </header>
 
           {error && (
-            <motion.p
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mx-4 mt-4 rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            <div
+              role="alert"
+              className="m-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-center justify-between"
             >
-              {error}
-            </motion.p>
+              <span>{error}</span>
+              <button onClick={() => setError(undefined)}>
+                <X size={14} />
+              </button>
+            </div>
           )}
 
           {/* Active Note or Empty State */}
@@ -371,6 +557,9 @@ export function NotesWorkspace() {
           )}
         </section>
       </section>
+
+      {/* Guest Limit Modal */}
+      <GuestLimitModal isOpen={showLimitModal} onClose={() => setShowLimitModal(false)} />
     </main>
   );
 }

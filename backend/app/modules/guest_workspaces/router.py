@@ -25,8 +25,31 @@ async def create_workspace(data: GuestWorkspaceCreate, request: Request, respons
     await enforce_rate_limit(request, "guest-workspace-create", 10, 300)
     await verify_turnstile(request, data.turnstile_token, "guest_workspace")
     workspace, token = await workspace_service.create_workspace(db)
-    response.set_cookie("copysync_guest_workspace", token, httponly=True, secure=settings.APP_ENV == "production", samesite="lax", max_age=24 * 60 * 60)
-    return {"id": str(workspace.id), "expires_at": workspace.expires_at}
+    response.set_cookie(
+        "copysync_guest_workspace",
+        token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=24 * 60 * 60,
+    )
+    return {"id": str(workspace.id), "token": token, "expires_at": workspace.expires_at}
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_guest_workspace(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    guest_token = (
+        request.headers.get("X-Guest-Workspace-Token")
+        or request.cookies.get("copysync_guest_workspace")
+    )
+    if guest_token:
+        await workspace_service.delete_workspace(db, guest_token)
+    response.delete_cookie("copysync_guest_workspace", samesite="none", secure=True)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _guest(owner: NoteOwner) -> NoteOwner:

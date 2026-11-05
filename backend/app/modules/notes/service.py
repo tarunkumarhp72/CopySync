@@ -16,7 +16,7 @@ def _owner_filter(owner: NoteOwner):
 
 
 def _note_limit(owner: NoteOwner) -> int:
-    return settings.ACCOUNT_NOTE_LIMIT if owner.kind == "user" else settings.GUEST_NOTE_LIMIT
+    return settings.ACCOUNT_NOTE_LIMIT if owner.kind == "user" else min(settings.GUEST_NOTE_LIMIT, 3)
 
 
 async def _next_untitled_number(db: AsyncSession, owner: NoteOwner) -> int:

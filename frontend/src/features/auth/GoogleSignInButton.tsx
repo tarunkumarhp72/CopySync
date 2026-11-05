@@ -85,10 +85,14 @@ export function GoogleSignInButton() {
             cancel_on_tap_outside: true,
             callback: async ({ credential }: { credential: string }) => {
               setError("");
+              const guestToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
               const response = await fetch(`${api}/auth/google/credential`, {
                 method: "POST",
                 credentials: "include",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(guestToken ? { "X-Guest-Workspace-Token": guestToken } : {}),
+                },
                 body: JSON.stringify({ credential }),
               });
               if (!response.ok) {
@@ -99,8 +103,11 @@ export function GoogleSignInButton() {
                 return;
               }
               const data = await response.json().catch(() => null);
-              if (data?.token && typeof window !== "undefined") {
-                localStorage.setItem("copysync_token", data.token);
+              if (typeof window !== "undefined") {
+                if (data?.token) {
+                  localStorage.setItem("copysync_token", data.token);
+                }
+                localStorage.removeItem("copysync_guest_token");
               }
               window.location.assign("/dashboard");
             },

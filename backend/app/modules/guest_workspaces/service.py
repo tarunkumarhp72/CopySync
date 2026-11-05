@@ -29,6 +29,21 @@ async def get_workspace(db: AsyncSession, raw_token: str) -> GuestWorkspace | No
     return result.scalar_one_or_none()
 
 
+async def delete_workspace(db: AsyncSession, raw_token: str) -> bool:
+    workspace = await get_workspace(db, raw_token)
+    if not workspace:
+        return False
+    images = await db.execute(
+        select(NoteImage.storage_key).join(Note).where(Note.guest_workspace_id == workspace.id)
+    )
+    paths = [Path(settings.UPLOAD_DIR).resolve() / key for key in images.scalars()]
+    await db.delete(workspace)
+    await db.commit()
+    for path in paths:
+        path.unlink(missing_ok=True)
+    return True
+
+
 async def claim_workspace(db: AsyncSession, raw_token: str, user_id: uuid.UUID) -> GuestWorkspace | None:
     result = await db.execute(select(GuestWorkspace).where(GuestWorkspace.token_hash == hash_qr_token(raw_token), GuestWorkspace.claimed_by_user_id.is_(None), GuestWorkspace.expires_at > datetime.now(timezone.utc)).with_for_update())
     workspace = result.scalar_one_or_none()

@@ -68,3 +68,17 @@ async def root() -> dict[str, str]:
 @app.get("/health", tags=["health"])
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/redis", tags=["health"])
+async def health_redis() -> dict:
+    import redis.asyncio as aioredis
+    try:
+        client = aioredis.from_url(settings.REDIS_URL, decode_responses=True, socket_timeout=3.0)
+        pong = await client.ping()
+        await client.aclose()
+        masked_host = settings.REDIS_URL.split("@")[-1] if "@" in settings.REDIS_URL else "configured"
+        return {"status": "connected", "ping": pong, "host": masked_host}
+    except Exception as exc:
+        masked_host = settings.REDIS_URL.split("@")[-1] if "@" in settings.REDIS_URL else "configured"
+        return {"status": "error", "error": str(exc), "host": masked_host}

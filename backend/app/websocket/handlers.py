@@ -41,9 +41,12 @@ async def guest_websocket(websocket: WebSocket, session_id: str, token: str, rol
     try:
         while True:
             event = await websocket.receive_json()
-            if event.get("type") not in {"clipboard.updated", "clipboard.cleared", "ping"}:
+            if event.get("type") not in {"clipboard.updated", "clipboard.cleared", "ping", "session.closed"}:
                 await websocket.send_json({"type": "error", "message": "Unsupported event"})
                 continue
+            if event["type"] == "session.closed":
+                await manager.broadcast(channel, {"type": "session.closed", "session_id": session_id, "by": role, "timestamp": datetime.now(timezone.utc).isoformat()})
+                break
             if event["type"] == "clipboard.updated":
                 if not await limiter.hit(f"clipboard:{session_id}", 30, 60):
                     await websocket.close(code=1013)

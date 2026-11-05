@@ -98,3 +98,4 @@ export function GuestLimitModal({ isOpen, onClose }: GuestLimitModalProps) {
     </AnimatePresence>
   );
 }
+

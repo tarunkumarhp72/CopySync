@@ -16,7 +16,6 @@ import { QRCodeSVG } from "qrcode.react";
 import { Turnstile } from "@/components/Turnstile";
 import { motion, AnimatePresence } from "motion/react";
 import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
-import { NotesWorkspace } from "@/features/notes/NotesWorkspace";
 
 type GuestSession = { id: string; token: string; status: string; expires_at: string };
 
@@ -120,9 +119,13 @@ export default function GuestPage() {
         if (data.type === "session.connected" && data.role === "receiver") {
           // Show green checkmark animation card first
           setViewState("connected-anim");
-          // Smoothly transition into the unified Notes Workspace after 1.2s
+          if (typeof window !== "undefined") {
+            localStorage.setItem("copysync_guest_session_id", session.id);
+            localStorage.setItem("copysync_guest_session_token", session.token);
+          }
+          // Redirect directly to the full Rich Text Notes page (/dashboard)
           setTimeout(() => {
-            setViewState("workspace");
+            window.location.assign("/dashboard");
           }, 1200);
         }
       } catch {
@@ -174,20 +177,6 @@ export default function GuestPage() {
 
   const minutes = Math.floor(remaining / 60);
   const seconds = String(remaining % 60).padStart(2, "0");
-
-  // =========================================================================
-  // STATE C: UNIFIED NOTES WORKSPACE (Matches Image 2 exactly)
-  // =========================================================================
-  if (viewState === "workspace" && session) {
-    return (
-      <NotesWorkspace
-        isGuestMode={true}
-        guestSessionId={session.id}
-        guestToken={session.token}
-        onEndGuestSession={endSession}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">

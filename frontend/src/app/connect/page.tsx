@@ -25,6 +25,7 @@ function ConnectContent() {
   const [content, setContent] = useState("");
   const [status, setStatus] = useState<"connecting" | "connected" | "unavailable">("connecting");
   const [error, setError] = useState<string>();
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
   const [pasteNotice, setPasteNotice] = useState<string | null>(null);
   const [hasPastedSuccess, setHasPastedSuccess] = useState(false);
@@ -97,6 +98,7 @@ function ConnectContent() {
 
         const data = await response.json();
         if (!isMounted) return;
+        setSessionId(data.id);
 
         // Connect to WebSocket as Receiver (Mobile Phone)
         const wsUrl = api.replace(/^http/, "ws") + `/ws/guest/${data.id}?token=${encodeURIComponent(token)}&role=receiver`;
@@ -110,6 +112,15 @@ function ConnectContent() {
         ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
+            if (msg.type === "session.closed" || msg.type === "session.sender_left") {
+              setStatus("unavailable");
+              setError("The connection was ended by your laptop.");
+              if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+              }
+              return;
+            }
             if (msg.type === "clipboard.updated" && typeof msg.content === "string") {
               // Only update if user is not actively typing locally to avoid cursor jump / scrambling
               if (!isTypingRef.current) {
@@ -266,6 +277,53 @@ function ConnectContent() {
     setContent("");
     sendClear();
   };
+
+  const handleDisconnect = async () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "session.closed" }));
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (sessionId && token) {
+      await fetch(`${api}/guest/session/${sessionId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      }).catch(() => {});
+    }
+    setStatus("unavailable");
+    setError("You ended this session.");
+  };
+
+  if (status === "unavailable") {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center p-6 text-center">
+        <div className="w-full max-w-sm rounded-3xl border border-border bg-white p-6 shadow-sm flex flex-col items-center">
+          <div className="grid size-14 place-items-center rounded-2xl bg-cream text-muted shadow-2xs mb-4">
+            <LogOut size={26} className="text-muted" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground">Connection Closed</h2>
+          <p className="mt-1.5 text-xs text-muted leading-relaxed">
+            {error || "This pairing session has ended or expired."}
+          </p>
+          <div className="mt-6 w-full space-y-2">
+            <Link
+              href="/guest"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent text-white py-2.5 text-xs font-semibold shadow-xs hover:bg-accent/90 transition"
+            >
+              <span>Scan QR Code Again</span>
+            </Link>
+            <Link
+              href="/"
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-white py-2.5 text-xs font-medium text-muted hover:text-foreground hover:bg-cream/50 transition"
+            >
+              <span>Return Home</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 w-full max-w-full overflow-x-hidden">
@@ -482,13 +540,13 @@ function ConnectContent() {
               <Eraser size={12} />
               <span>Clear</span>
             </button>
-            <Link
-              href="/"
-              className="flex-1 flex items-center justify-center gap-1 rounded-xl border border-border bg-white py-2 text-[11px] font-medium text-muted hover:text-foreground hover:bg-cream/50 transition"
+            <button
+              onClick={handleDisconnect}
+              className="flex-1 flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50/60 py-2 text-[11px] font-medium text-red-700 hover:bg-red-100/60 transition"
             >
               <LogOut size={12} />
               <span>Disconnect</span>
-            </Link>
+            </button>
           </div>
 
           {error && (

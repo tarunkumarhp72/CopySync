@@ -78,14 +78,21 @@ export function NotesWorkspace({
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
-  // WebSocket connection for live phone streaming into active note
+  // WebSocket connection for live phone streaming into active rich text note
   useEffect(() => {
     const api = process.env.NEXT_PROD_API_URL;
-    if (!guestSessionId || !guestToken || !api) return;
+    const effectiveSessionId =
+      guestSessionId ||
+      (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_id") : null);
+    const effectiveToken =
+      guestToken ||
+      (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_token") : null);
+
+    if (!effectiveSessionId || !effectiveToken || !api) return;
 
     const wsUrl =
       api.replace(/^http/, "ws") +
-      `/ws/guest/${guestSessionId}?token=${encodeURIComponent(guestToken)}&role=sender`;
+      `/ws/guest/${effectiveSessionId}?token=${encodeURIComponent(effectiveToken)}&role=sender`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -95,13 +102,30 @@ export function NotesWorkspace({
       }
     }, 25000);
 
+    const formatRichText = (text: string) => {
+      if (text.startsWith("<") && text.endsWith(">")) return text;
+      return text
+        .split("\n")
+        .map((line) => `<p>${line || "<br>"}</p>`)
+        .join("");
+    };
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === "session.closed" || data.type === "session.receiver_left") {
+          setError("Mobile device disconnected. Pairing session has ended.");
+          if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+          }
+          return;
+        }
         if (data.type === "clipboard.updated" && typeof data.content === "string") {
+          const richContent = formatRichText(data.content);
           const current = activeRef.current;
           if (current) {
-            const next = { ...current, content: data.content };
+            const next = { ...current, content: richContent };
             setActive(next);
             persist(next);
           } else {
@@ -109,7 +133,7 @@ export function NotesWorkspace({
             void (async () => {
               try {
                 const newNote = await notesService.create();
-                const next = { ...newNote, content: data.content };
+                const next = { ...newNote, content: richContent };
                 setActive(next);
                 setNotes((items) => [next, ...items.filter((i) => i.id !== next.id)]);
                 persist(next);
@@ -214,6 +238,8 @@ export function NotesWorkspace({
       if (typeof window !== "undefined") {
         localStorage.removeItem("copysync_token");
         localStorage.removeItem("copysync_guest_token");
+        localStorage.removeItem("copysync_guest_session_id");
+        localStorage.removeItem("copysync_guest_session_token");
       }
       location.assign("/login");
     }
@@ -225,20 +251,30 @@ export function NotesWorkspace({
     }
     setIsEndingSession(true);
     try {
-      await apiFetch<void>("/guest-workspace", { method: "DELETE" }).catch(() => {});
-      if (guestSessionId && guestToken) {
-        await apiFetch<void>(`/guest/session/${guestSessionId}`, {
-          method: "DELETE",
-          body: JSON.stringify({ token: guestToken }),
-        }).catch(() => {});
-      }
-      if (wsRef.current) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "session.closed" }));
         wsRef.current.close();
         wsRef.current = null;
+      }
+      await apiFetch<void>("/guest-workspace", { method: "DELETE" }).catch(() => {});
+      const effectiveSessionId =
+        guestSessionId ||
+        (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_id") : null);
+      const effectiveToken =
+        guestToken ||
+        (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_token") : null);
+
+      if (effectiveSessionId && effectiveToken) {
+        await apiFetch<void>(`/guest/session/${effectiveSessionId}`, {
+          method: "DELETE",
+          body: JSON.stringify({ token: effectiveToken }),
+        }).catch(() => {});
       }
     } finally {
       if (typeof window !== "undefined") {
         localStorage.removeItem("copysync_guest_token");
+        localStorage.removeItem("copysync_guest_session_id");
+        localStorage.removeItem("copysync_guest_session_token");
       }
       if (onEndGuestSession) {
         onEndGuestSession();

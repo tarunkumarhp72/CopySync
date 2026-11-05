@@ -1,25 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { NotesWorkspace } from "@/features/notes/NotesWorkspace";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
-export default function DashboardPage() {
-  const [tokenReady, setTokenReady] = useState(false);
+export default function DashboardRedirect() {
+  const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      const token = url.searchParams.get("token");
-      if (token) {
-        localStorage.setItem("copysync_token", token);
-        url.searchParams.delete("token");
-        window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
-      }
-    }
-    setTokenReady(true);
-  }, []);
+    // Preserve any query parameters (like ?token=...)
+    const query = typeof window !== "undefined" ? window.location.search : "";
+    router.replace(`/notes${query}`);
+  }, [router]);
 
-  if (!tokenReady) return null;
-
-  return <NotesWorkspace />;
+  return (
+    <div className="grid min-h-screen place-items-center bg-background">
+      <Loader2 size={28} className="animate-spin text-accent" />
+    </div>
+  );
 }

@@ -247,11 +247,11 @@ export function HeaderAuthStatus() {
 
               <div className="mt-2 pt-2 border-t border-stone-200/70 text-center">
                 <Link
-                  href="/dashboard"
+                  href="/notes"
                   onClick={() => setShowNotifications(false)}
                   className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
                 >
-                  <span>Go to Workspace</span>
+                  <span>Go to Notes</span>
                   <ExternalLink size={11} />
                 </Link>
               </div>
@@ -327,12 +327,12 @@ export function HeaderAuthStatus() {
               {/* Menu items */}
               <div className="mt-1.5 space-y-0.5 text-xs">
                 <Link
-                  href="/dashboard"
+                  href="/notes"
                   onClick={() => setShowProfileMenu(false)}
                   className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 font-medium text-stone-700 hover:bg-stone-100 hover:text-stone-900 transition"
                 >
                   <FileText size={14} className="text-stone-500" />
-                  <span>Notes Workspace</span>
+                  <span>My Notes</span>
                 </Link>
 
                 <Link

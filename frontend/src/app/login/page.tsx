@@ -15,7 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // If user is already signed in, redirect them directly to dashboard
+  // If user is already signed in, redirect them directly to notes
   useEffect(() => {
     let alive = true;
     const check = async () => {
@@ -26,7 +26,7 @@ export default function LoginPage() {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok && alive) {
-          router.replace("/dashboard");
+          router.replace("/notes");
           return;
         }
       } catch {

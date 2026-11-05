@@ -114,7 +114,7 @@ async def google_callback(code: str, state: str, request: Request, db: AsyncSess
     _, app_token, _ = await _establish_session(request, db, claims, dummy_resp)
 
     # Pass token in redirect URL so cross-site frontends can store it in localStorage
-    response = RedirectResponse(f"{settings.FRONTEND_URL}/dashboard?token={app_token}", status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(f"{settings.FRONTEND_URL}/notes?token={app_token}", status_code=status.HTTP_302_FOUND)
     response.delete_cookie("copysync_oauth_state", samesite="none", secure=True)
     response.set_cookie(
         "copysync_session",

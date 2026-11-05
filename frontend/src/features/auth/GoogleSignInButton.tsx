@@ -114,7 +114,7 @@ export function GoogleSignInButton() {
                   }
                   localStorage.removeItem("copysync_guest_token");
                 }
-                window.location.assign("/dashboard");
+                window.location.assign("/notes");
               } catch (cause) {
                 setError(cause instanceof Error ? cause.message : "Google sign-in failed.");
                 setIsAuthenticating(false);

@@ -116,9 +116,9 @@ export default function GuestPage() {
               : Date.now() + 60 * 60 * 1000;
             localStorage.setItem("copysync_guest_expires_at", expiresAtMs.toString());
           }
-          // Redirect directly to the full Rich Text Notes page (/dashboard)
+          // Redirect directly to the full Rich Text Notes page (/notes)
           setTimeout(() => {
-            window.location.assign("/dashboard");
+            window.location.assign("/notes");
           }, 1200);
         }
       } catch {

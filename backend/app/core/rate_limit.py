@@ -38,8 +38,8 @@ class SlidingWindowCounter:
             try:
                 return await self._redis_hit(key, limit, seconds, bucket, (seconds - elapsed) / seconds)
             except Exception:
-                if settings.APP_ENV == "production":
-                    return False
+                import logging
+                logging.getLogger("uvicorn.error").warning("Redis rate limit check failed, falling back to memory counter")
         async with self._lock:
             current = self._counts[(key, bucket)]; previous = self._counts[(key, bucket - 1)]
             weighted = current + previous * ((seconds - elapsed) / seconds)

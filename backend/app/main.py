@@ -20,12 +20,35 @@ from app.modules.guest_sessions.router import router as guest_router
 from app.websocket.handlers import router as websocket_router
 from app.modules.uploads.router import router as uploads_router
 from app.modules.guest_workspaces.router import router as guest_workspace_router
+from app.modules.cron.router import router as cron_router
+
+
+async def _periodic_db_cleanup():
+    import logging
+    logger = logging.getLogger("uvicorn.error")
+    from app.core.database import AsyncSessionLocal
+    from app.modules.guest_sessions.service import cleanup_stale_and_expired_data
+
+    while True:
+        try:
+            await asyncio.sleep(3600)  # runs once every hour
+            async with AsyncSessionLocal() as db:
+                purged = await cleanup_stale_and_expired_data(db)
+                logger.info("Automatic periodic cleanup completed: %s", purged)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.warning("Automatic cleanup encountered error: %s", exc)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     setup_logging()
+    cleanup_task = asyncio.create_task(_periodic_db_cleanup())
     yield
+    cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await cleanup_task
 
 
 app = FastAPI(title="CopySync API", version="0.1.0", lifespan=lifespan)
@@ -58,6 +81,7 @@ app.include_router(guest_router)
 app.include_router(websocket_router)
 app.include_router(uploads_router)
 app.include_router(guest_workspace_router)
+app.include_router(cron_router)
 
 
 @app.get("/", tags=["health"])

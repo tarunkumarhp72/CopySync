@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     GUEST_RECONNECT_GRACE_SECONDS: int
     CONNECTION_MANAGER_BACKEND: Literal["memory", "redis"]
     REDIS_URL: str
+    CRON_SECRET: str = "copysync_cron_secret_key_2026"
     APP_ENV: Literal["development", "production"]
     DEBUG: bool
 

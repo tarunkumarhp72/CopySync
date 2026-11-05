@@ -50,3 +50,72 @@ async def close_session(db: AsyncSession, session_id: str, token: str) -> GuestS
         session.status = SessionStatus.CLOSED
     await db.refresh(session)
     return session
+
+
+async def cleanup_stale_and_expired_data(db: AsyncSession) -> dict[str, int]:
+    from datetime import timedelta
+    from pathlib import Path
+    from sqlalchemy import delete
+    from app.core.config import settings
+    from app.modules.guest_workspaces.models import GuestWorkspace
+    from app.modules.notes.models import Note, NoteImage
+
+    now = datetime.now(timezone.utc)
+    stale_qr_cutoff = now - timedelta(seconds=settings.QR_TOKEN_TTL_SECONDS)
+
+    # 1. Delete unclaimed QR sessions in WAITING status older than 5 minutes
+    res_waiting = await db.execute(
+        delete(GuestSession).where(
+            GuestSession.status == SessionStatus.WAITING,
+            GuestSession.created_at < stale_qr_cutoff,
+        )
+    )
+
+    # 2. Delete expired or closed sessions
+    res_expired = await db.execute(
+        delete(GuestSession).where(
+            (GuestSession.expires_at < now)
+            | (GuestSession.status.in_([SessionStatus.CLOSED, SessionStatus.EXPIRED]))
+        )
+    )
+
+    # 3. Clean up expired unclaimed guest workspaces and their images
+    expired_workspaces = (
+        await db.execute(
+            select(GuestWorkspace.id).where(
+                GuestWorkspace.claimed_by_user_id.is_(None),
+                GuestWorkspace.expires_at < now,
+            )
+        )
+    ).scalars().all()
+
+    images_removed = 0
+    workspaces_removed = 0
+    if expired_workspaces:
+        image_keys = (
+            await db.execute(
+                select(NoteImage.storage_key)
+                .join(Note)
+                .where(Note.guest_workspace_id.in_(expired_workspaces))
+            )
+        ).scalars().all()
+
+        for key in image_keys:
+            try:
+                (Path(settings.UPLOAD_DIR).resolve() / key).unlink(missing_ok=True)
+                images_removed += 1
+            except Exception:
+                pass
+
+        res_ws = await db.execute(
+            delete(GuestWorkspace).where(GuestWorkspace.id.in_(expired_workspaces))
+        )
+        workspaces_removed = res_ws.rowcount
+
+    await db.commit()
+    return {
+        "stale_qr_waiting_sessions_purged": res_waiting.rowcount or 0,
+        "expired_sessions_purged": res_expired.rowcount or 0,
+        "expired_guest_workspaces_purged": workspaces_removed,
+        "orphaned_images_removed": images_removed,
+    }

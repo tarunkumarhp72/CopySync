@@ -11,6 +11,7 @@ import {
   Clock,
   Check,
   Smartphone,
+  Loader2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Turnstile } from "@/components/Turnstile";
@@ -28,6 +29,7 @@ export default function GuestPage() {
   const [remaining, setRemaining] = useState(TOTAL_DURATION_SECONDS);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [viewState, setViewState] = useState<"waiting" | "connected-anim" | "workspace">("waiting");
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -36,6 +38,7 @@ export default function GuestPage() {
   const create = async (token = turnstileToken) => {
     setError(undefined);
     setIsRefreshing(true);
+    setIsCreatingSession(true);
     setViewState("waiting");
 
     if (wsRef.current) {
@@ -76,6 +79,7 @@ export default function GuestPage() {
       setError(cause instanceof Error ? cause.message : "Could not create a connection.");
     } finally {
       setIsRefreshing(false);
+      setIsCreatingSession(false);
     }
   };
 
@@ -303,7 +307,24 @@ export default function GuestPage() {
                     </div>
                   ) : (
                     <div className="flex min-h-56 flex-col items-center justify-center text-center text-sm text-muted">
-                      {needsTurnstile ? (
+                      {isCreatingSession || isRefreshing || (turnstileToken && !session) ? (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex flex-col items-center justify-center py-4 w-full"
+                        >
+                          <div className="relative size-44 sm:size-48 rounded-xl border border-border bg-cream/30 flex flex-col items-center justify-center overflow-hidden shadow-inner">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 via-accent/10 to-transparent animate-pulse" />
+                            <Loader2 size={32} className="animate-spin text-accent mb-2.5 relative z-10" />
+                            <span className="text-xs font-semibold text-foreground tracking-tight relative z-10">Creating secure session</span>
+                            <span className="text-[11px] text-muted mt-0.5 relative z-10">Setting up encrypted channel...</span>
+                          </div>
+                          <div className="mt-4 flex items-center gap-2 text-xs text-muted">
+                            <span className="size-2 rounded-full bg-accent animate-ping" />
+                            <span>Generating QR code...</span>
+                          </div>
+                        </motion.div>
+                      ) : needsTurnstile ? (
                         <div className="flex flex-col items-center gap-4 max-w-full overflow-hidden">
                           <Turnstile
                             action="guest_session"
@@ -317,8 +338,8 @@ export default function GuestPage() {
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-3">
-                          <div className="size-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-                          <span className="text-xs">Creating secure session...</span>
+                          <Loader2 size={28} className="animate-spin text-accent" />
+                          <span className="text-xs font-medium text-foreground">Creating secure session...</span>
                         </div>
                       )}
                     </div>

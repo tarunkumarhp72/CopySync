@@ -21,6 +21,7 @@ import type { Note, NoteListItem } from "@/types/note";
 import { RichTextEditor } from "@/features/notes/RichTextEditor";
 import { GuestLimitModal } from "@/features/notes/GuestLimitModal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { ConnectionLostModal } from "@/components/ui/ConnectionLostModal";
 import { NoteListSkeleton, NoteEditorSkeleton } from "@/components/ui/Skeleton";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -47,6 +48,7 @@ export function NotesWorkspace({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [isConnectionLost, setIsConnectionLost] = useState(false);
 
   // Loading States
   const [isLoadingNotes, setIsLoadingNotes] = useState(true);
@@ -149,6 +151,32 @@ export function NotesWorkspace({
       try {
         const data = JSON.parse(event.data);
         if (data.type === "session.closed" || data.type === "session.receiver_left") {
+          const hasGuest =
+            isGuest ||
+            (typeof window !== "undefined" &&
+              Boolean(localStorage.getItem("copysync_guest_token") || localStorage.getItem("copysync_guest_session_id")));
+
+          if (hasGuest) {
+            const gToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
+            if (gToken && api) {
+              fetch(`${api}/guest-workspace`, {
+                method: "DELETE",
+                headers: { "X-Guest-Workspace-Token": gToken },
+              }).catch(() => {});
+            }
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("copysync_guest_token");
+              localStorage.removeItem("copysync_guest_session_id");
+              localStorage.removeItem("copysync_guest_session_token");
+            }
+            setIsConnectionLost(true);
+            if (wsRef.current) {
+              wsRef.current.close();
+              wsRef.current = null;
+            }
+            return;
+          }
+
           setError("Mobile device disconnected. Pairing session has ended.");
           if (wsRef.current) {
             wsRef.current.close();
@@ -703,6 +731,9 @@ export function NotesWorkspace({
 
       {/* Guest 3-Note Limit Modal */}
       <GuestLimitModal isOpen={showLimitModal} onClose={() => setShowLimitModal(false)} />
+
+      {/* Connection Lost Modal (Auto-redirects to /guest) */}
+      <ConnectionLostModal isOpen={isConnectionLost} />
 
       {/* Custom Confirmation Modal (Replaces browser confirm() dialogs) */}
       <ConfirmModal

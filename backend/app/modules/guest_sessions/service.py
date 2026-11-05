@@ -26,6 +26,7 @@ async def claim_session(db: AsyncSession, token: str, receiver_connection_id: st
             raise SessionNotAvailableError()
         session.status = SessionStatus.CONNECTED
         session.receiver_connection_id = receiver_connection_id
+        session.expires_at = guest_session_expires_at()
     await db.refresh(session)
     return session
 

@@ -14,6 +14,7 @@ import {
   Sparkles,
   Smartphone,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { notesService } from "@/services/notes.service";
@@ -49,6 +50,7 @@ export function NotesWorkspace({
   const [isGuest, setIsGuest] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isConnectionLost, setIsConnectionLost] = useState(false);
+  const [sessionRemaining, setSessionRemaining] = useState<number | null>(null);
 
   // Loading States
   const [isLoadingNotes, setIsLoadingNotes] = useState(true);
@@ -88,6 +90,38 @@ export function NotesWorkspace({
       setIsGuest(isGuestMode ?? (!hasUserToken && hasGuestToken));
     }
   }, [isGuestMode]);
+
+  // Session timer: starts when QR code is scanned & connection is established
+  useEffect(() => {
+    if (!isGuest) return;
+
+    const checkTime = () => {
+      if (typeof window === "undefined") return;
+      const stored = localStorage.getItem("copysync_guest_expires_at");
+      if (!stored) {
+        // If not already stored, start 60-minute duration from when notes workspace opens
+        const newExpiry = Date.now() + 60 * 60 * 1000;
+        localStorage.setItem("copysync_guest_expires_at", newExpiry.toString());
+        setSessionRemaining(3600);
+        return;
+      }
+      const expMs = Number(stored);
+      const diff = Math.max(0, Math.ceil((expMs - Date.now()) / 1000));
+      setSessionRemaining(diff);
+
+      if (diff <= 0) {
+        // Session expired: end guest session and redirect to /guest
+        setIsConnectionLost(true);
+      }
+    };
+
+    checkTime();
+    const interval = setInterval(checkTime, 1000);
+    return () => clearInterval(interval);
+  }, [isGuest]);
+
+  const sessionMinutes = sessionRemaining !== null ? Math.floor(sessionRemaining / 60) : 60;
+  const sessionSeconds = sessionRemaining !== null ? String(sessionRemaining % 60).padStart(2, "0") : "00";
 
   const load = useCallback(async () => {
     setIsLoadingNotes(true);
@@ -503,6 +537,19 @@ export function NotesWorkspace({
                 {notes.length}/3 Notes
               </span>
             </div>
+
+            {sessionRemaining !== null && (
+              <div className="flex items-center justify-between rounded-lg bg-amber-100/70 px-2.5 py-1 text-[11px] text-amber-950 font-medium border border-amber-200/60">
+                <span className="flex items-center gap-1.5">
+                  <Clock size={12} className="text-amber-800 shrink-0" />
+                  <span>Session time left:</span>
+                </span>
+                <span className="font-mono font-bold text-amber-950">
+                  {sessionMinutes}:{sessionSeconds}
+                </span>
+              </div>
+            )}
+
             <p className="text-[11px] leading-relaxed text-amber-800">
               Temporary guest session. Sign in with Google to keep notes permanently.
             </p>
@@ -619,11 +666,19 @@ export function NotesWorkspace({
                 </AnimatePresence>
               </div>
 
-              {/* Guest Live Paired Indicator */}
+              {/* Guest Live Paired Indicator & Session Countdown */}
               {isGuest && (
-                <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-2.5 py-0.5 text-xs text-emerald-800 font-medium">
-                  <Smartphone size={12} className="text-emerald-700" />
-                  <span>Phone Connected • {notes.length}/3 Notes</span>
+                <div className="flex items-center gap-2">
+                  <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-2.5 py-0.5 text-xs text-emerald-800 font-medium">
+                    <Smartphone size={12} className="text-emerald-700" />
+                    <span>Phone Connected • {notes.length}/3 Notes</span>
+                  </div>
+                  {sessionRemaining !== null && (
+                    <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-white px-2.5 py-0.5 text-xs text-muted shadow-2xs font-mono font-medium">
+                      <Clock size={12} className="text-accent shrink-0" />
+                      <span>Session: <strong className="text-foreground">{sessionMinutes}:{sessionSeconds}</strong></span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

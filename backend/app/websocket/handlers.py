@@ -37,7 +37,17 @@ async def guest_websocket(websocket: WebSocket, session_id: str, token: str, rol
         return
     websocket.state.guest_role = role
     await manager.connect(channel, websocket)
-    await manager.broadcast(channel, {"type": "session.connected", "session_id": session_id, "role": role, "timestamp": datetime.now(timezone.utc).isoformat()})
+    expires_at_iso = session.expires_at.isoformat() if hasattr(session, "expires_at") and session.expires_at else None
+    await manager.broadcast(
+        channel,
+        {
+            "type": "session.connected",
+            "session_id": session_id,
+            "role": role,
+            "expires_at": expires_at_iso,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
     try:
         while True:
             event = await websocket.receive_json()

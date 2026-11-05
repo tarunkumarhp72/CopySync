@@ -8,7 +8,6 @@ import {
   X,
   ShieldCheck,
   ArrowLeft,
-  Clock,
   Check,
   Smartphone,
   Loader2,
@@ -21,12 +20,10 @@ import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
 type GuestSession = { id: string; token: string; status: string; expires_at: string };
 
 const api = process.env.NEXT_PROD_API_URL;
-const TOTAL_DURATION_SECONDS = 300;
 
 export default function GuestPage() {
   const [session, setSession] = useState<GuestSession>();
   const [error, setError] = useState<string>();
-  const [remaining, setRemaining] = useState(TOTAL_DURATION_SECONDS);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
@@ -88,18 +85,6 @@ export default function GuestPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsTurnstile]);
 
-  // Expiry Countdown
-  useEffect(() => {
-    const tick = () => {
-      if (!session) return;
-      const diff = Math.max(0, Math.ceil((new Date(session.expires_at).getTime() - Date.now()) / 1000));
-      setRemaining(diff);
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [session]);
-
   // WebSocket connection for Sender (Laptop/Desktop)
   useEffect(() => {
     if (!session || !api) return;
@@ -126,6 +111,10 @@ export default function GuestPage() {
           if (typeof window !== "undefined") {
             localStorage.setItem("copysync_guest_session_id", session.id);
             localStorage.setItem("copysync_guest_session_token", session.token);
+            const expiresAtMs = data.expires_at
+              ? new Date(data.expires_at).getTime()
+              : Date.now() + 60 * 60 * 1000;
+            localStorage.setItem("copysync_guest_expires_at", expiresAtMs.toString());
           }
           // Redirect directly to the full Rich Text Notes page (/dashboard)
           setTimeout(() => {
@@ -178,9 +167,6 @@ export default function GuestPage() {
       void create();
     }
   };
-
-  const minutes = Math.floor(remaining / 60);
-  const seconds = String(remaining % 60).padStart(2, "0");
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -293,14 +279,6 @@ export default function GuestPage() {
                         <QRCodeSVG value={url} size={180} className="size-40 sm:size-48" level="M" includeMargin={false} />
                       </div>
 
-                      <div className="mt-4 flex items-center gap-2 text-xs text-muted">
-                        <Clock size={14} className="text-accent" />
-                        <span>Session expires in:</span>
-                        <span className="font-mono font-semibold text-foreground">
-                          {minutes}:{seconds}
-                        </span>
-                      </div>
-
                       <div className="mt-4 w-full min-w-0">
                         <InteractiveCopyPill textToCopy={url} displayText="Copy direct connection link" className="w-full justify-between bg-white py-2" />
                       </div>
@@ -411,8 +389,8 @@ export default function GuestPage() {
                     <Smartphone size={15} className="text-emerald-700" />
                     <span>Live Phone Paired</span>
                   </span>
-                  <span className="font-mono font-semibold">
-                    Expires in: {minutes}:{seconds}
+                  <span className="font-semibold text-emerald-700">
+                    Active Session
                   </span>
                 </div>
               </div>

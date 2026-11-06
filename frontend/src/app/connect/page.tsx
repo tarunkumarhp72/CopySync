@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { getOrCreateDeviceId } from "@/features/presence/deviceId";
 
 const api = process.env.NEXT_PROD_API_URL;
 
@@ -104,9 +105,17 @@ function ConnectContent() {
         setSessionId(data.id);
 
         // Connect to WebSocket as Receiver (Mobile Phone)
-        const wsUrl = api.replace(/^http/, "ws") + `/ws/guest/${data.id}?token=${encodeURIComponent(token)}&role=receiver`;
+        const deviceId = getOrCreateDeviceId();
+        const wsUrl = api.replace(/^http/, "ws") + `/ws/guest/${data.id}?token=${encodeURIComponent(token)}&role=receiver&device_id=${encodeURIComponent(deviceId)}`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
+
+        ws.onclose = (ev) => {
+          if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
+            setStatus("unavailable");
+            setError(ev.reason || "Maximum 3 active devices reached for this guest session.");
+          }
+        };
 
         ws.onopen = () => {
           if (isMounted) setStatus("connected");

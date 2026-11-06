@@ -25,6 +25,9 @@ import { RichTextEditor } from "@/features/notes/RichTextEditor";
 import { GuestLimitModal } from "@/features/notes/GuestLimitModal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { ConnectionLostModal } from "@/components/ui/ConnectionLostModal";
+import { DeviceLimitModal } from "@/features/notes/DeviceLimitModal";
+import { usePresence } from "@/features/presence/usePresence";
+import { getOrCreateDeviceId } from "@/features/presence/deviceId";
 import { NoteListSkeleton, NoteEditorSkeleton } from "@/components/ui/Skeleton";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -50,6 +53,9 @@ export function NotesWorkspace({
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
+  const presence = usePresence(isGuest);
+  const [guestLimitReached, setGuestLimitReached] = useState(false);
+  const [guestLimitMessage, setGuestLimitMessage] = useState<string | null>(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isConnectionLost, setIsConnectionLost] = useState(false);
   const [sessionRemaining, setSessionRemaining] = useState<number | null>(null);
@@ -203,11 +209,19 @@ export function NotesWorkspace({
 
     if (!effectiveSessionId || !effectiveToken || !api) return;
 
+    const deviceId = getOrCreateDeviceId();
     const wsUrl =
       api.replace(/^http/, "ws") +
-      `/ws/guest/${effectiveSessionId}?token=${encodeURIComponent(effectiveToken)}&role=sender`;
+      `/ws/guest/${effectiveSessionId}?token=${encodeURIComponent(effectiveToken)}&role=sender&device_id=${encodeURIComponent(deviceId)}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+
+    ws.onclose = (ev) => {
+      if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
+        setGuestLimitReached(true);
+        setGuestLimitMessage(ev.reason);
+      }
+    };
 
     const pingInterval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -1017,6 +1031,20 @@ export function NotesWorkspace({
 
       {/* Connection Lost Modal (Auto-redirects to /guest) */}
       <ConnectionLostModal isOpen={isConnectionLost} />
+
+      {/* Device Connection Limit Modal (Option A: 3 for guest, 5 for account) */}
+      <DeviceLimitModal
+        isOpen={presence.isLimitReached || guestLimitReached}
+        isGuest={isGuest}
+        maxDevices={isGuest ? 3 : 5}
+        message={presence.limitMessage || guestLimitMessage}
+        onRetry={() => {
+          setGuestLimitReached(false);
+          setGuestLimitMessage(null);
+          presence.retry();
+          window.location.reload();
+        }}
+      />
 
       {/* Custom Confirmation Modal (Replaces browser confirm() dialogs) */}
       <ConfirmModal

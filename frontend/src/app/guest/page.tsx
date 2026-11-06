@@ -14,6 +14,7 @@ import { Turnstile } from "@/components/Turnstile";
 import { motion, AnimatePresence } from "motion/react";
 import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
 import { ProfessionalQRCode } from "@/components/ui/ProfessionalQRCode";
+import { getOrCreateDeviceId } from "@/features/presence/deviceId";
 
 type GuestSession = { id: string; token: string; status: string; expires_at: string };
 
@@ -87,11 +88,18 @@ export default function GuestPage() {
   useEffect(() => {
     if (!session || !api) return;
 
+    const deviceId = getOrCreateDeviceId();
     const wsUrl =
       api.replace(/^http/, "ws") +
-      `/ws/guest/${session.id}?token=${encodeURIComponent(session.token)}&role=sender`;
+      `/ws/guest/${session.id}?token=${encodeURIComponent(session.token)}&role=sender&device_id=${encodeURIComponent(deviceId)}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+
+    ws.onclose = (ev) => {
+      if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
+        setError(ev.reason || "Maximum 3 active devices reached for this guest session.");
+      }
+    };
 
     const pingInterval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {

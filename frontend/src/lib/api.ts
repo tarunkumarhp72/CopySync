@@ -1,12 +1,16 @@
+import { getOrCreateDeviceId } from "@/features/presence/deviceId";
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const baseUrl = process.env.NEXT_PROD_API_URL;
   const token = typeof window !== "undefined" ? localStorage.getItem("copysync_token") : null;
   const guestToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
+  const deviceId = getOrCreateDeviceId();
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      "X-Device-Id": deviceId,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(guestToken ? { "X-Guest-Workspace-Token": guestToken } : {}),
       ...init.headers,

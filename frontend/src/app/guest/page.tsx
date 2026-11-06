@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Clipboard,
-  RefreshCw,
-  X,
   ShieldCheck,
   ArrowLeft,
   Check,
@@ -138,36 +136,6 @@ export default function GuestPage() {
     [session]
   );
 
-  const endSession = async () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    const guestToken = typeof window !== "undefined" ? localStorage.getItem("copysync_guest_token") : null;
-    try {
-      if (guestToken) {
-        await fetch(`${api}/guest-workspace`, {
-          method: "DELETE",
-          headers: { "X-Guest-Workspace-Token": guestToken },
-        }).catch(() => {});
-      }
-      if (session) {
-        await fetch(`${api}/guest/session/${session.id}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: session.token }),
-        }).catch(() => {});
-      }
-    } finally {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("copysync_guest_token");
-      }
-      setSession(undefined);
-      setViewState("waiting");
-      void create();
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Header */}
@@ -289,16 +257,17 @@ export default function GuestPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex min-h-56 flex-col items-center justify-center text-center text-sm text-muted">
+                    <div className="flex flex-col items-center justify-center text-center text-sm text-muted">
                       {isCreatingSession || isRefreshing || (turnstileToken && !session) ? (
                         <motion.div
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="flex flex-col items-center justify-center py-4 w-full"
+                          className="flex flex-col items-center justify-center w-full"
                         >
-                          <div className="relative size-44 sm:size-48 rounded-xl border border-border bg-cream/30 flex flex-col items-center justify-center overflow-hidden shadow-inner">
+                          {/* Skeleton accurately matching ProfessionalQRCode outer container (size 224px, rounded-2xl) */}
+                          <div className="relative size-[224px] rounded-2xl border border-border/80 bg-white p-4 flex flex-col items-center justify-center overflow-hidden shadow-xs">
                             <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 via-accent/10 to-transparent animate-pulse" />
-                            <Loader2 size={32} className="animate-spin text-accent mb-2.5 relative z-10" />
+                            <Loader2 size={30} className="animate-spin text-accent mb-2.5 relative z-10" />
                             <span className="text-xs font-semibold text-foreground tracking-tight relative z-10">Creating secure session</span>
                             <span className="text-[11px] text-muted mt-0.5 relative z-10">Setting up encrypted channel...</span>
                           </div>
@@ -320,7 +289,7 @@ export default function GuestPage() {
                           <span className="text-xs">Complete verification to generate QR code</span>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center gap-3">
+                        <div className="flex flex-col items-center justify-center size-[224px] rounded-2xl border border-border/80 bg-white gap-3 shadow-xs">
                           <Loader2 size={28} className="animate-spin text-accent" />
                           <span className="text-xs font-medium text-foreground">Creating secure session...</span>
                         </div>
@@ -333,24 +302,6 @@ export default function GuestPage() {
                       {error}
                     </p>
                   )}
-
-                  <div className="mt-5 flex items-center gap-2 pt-4 border-t border-border/80">
-                    <button
-                      onClick={() => void create()}
-                      disabled={(needsTurnstile && !turnstileToken) || isRefreshing}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white py-2 text-xs font-medium text-foreground hover:bg-cream/50 transition disabled:opacity-50"
-                    >
-                      <RefreshCw size={13} className={isRefreshing ? "animate-spin text-accent" : "text-muted"} />
-                      <span>New code</span>
-                    </button>
-                    <button
-                      onClick={() => void endSession()}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white py-2 text-xs font-medium text-muted hover:text-foreground hover:bg-cream/50 transition"
-                    >
-                      <X size={13} />
-                      <span>End session</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </motion.div>

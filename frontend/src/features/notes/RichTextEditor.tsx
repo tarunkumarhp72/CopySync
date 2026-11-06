@@ -30,7 +30,8 @@ import {
   Baseline,
   X,
   RotateCcw,
-  ChevronDown
+  ChevronDown,
+  MoreHorizontal,
 } from "lucide-react";
 import { ResizableImage } from "./ResizableImage";
 import { FontSize, FontFamily } from "./textCustomExtensions";
@@ -142,6 +143,7 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
   const [showBubbleTextColor, setShowBubbleTextColor] = useState(false);
   const [showBubbleFontSize, setShowBubbleFontSize] = useState(false);
   const [showBubbleFontFamily, setShowBubbleFontFamily] = useState(false);
+  const [showMobileMore, setShowMobileMore] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [charCount, setCharCount] = useState(0);
 
@@ -154,6 +156,7 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
     setShowBubbleTextColor(false);
     setShowBubbleFontSize(false);
     setShowBubbleFontFamily(false);
+    setShowMobileMore(false);
   };
 
   // Close popups on click outside or when typing Enter / Escape
@@ -857,9 +860,9 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
       <div 
         role="toolbar" 
         aria-label="Text formatting" 
-        className="note-toolbar relative z-20 flex flex-nowrap md:flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-white p-1.5 shadow-2xs overflow-x-auto no-scrollbar max-w-full select-none touch-pan-x [&>*]:shrink-0"
+        className="note-toolbar relative z-20 flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-white p-1.5 shadow-2xs max-w-full select-none"
       >
-        {/* Undo / Redo Group */}
+        {/* 1. Undo / Redo Group (Always visible on mobile & desktop) */}
         <div className="flex items-center gap-0.5">
           <Tooltip text="Undo" shortcut="Ctrl+Z">
             <button
@@ -894,354 +897,576 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
 
         <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
 
-        {/* Font Style / Typeface Dropdown */}
-        <div className="relative editor-popover-container">
-          <Tooltip text="Font style / typeface" shortcut="Font">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowFontFamilyPicker(!showFontFamilyPicker);
-                setShowFontSizePicker(false);
-                setShowTextColorPicker(false);
-                setShowHighlightPicker(false);
-              }}
-              className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
-                showFontFamilyPicker
-                  ? "bg-cream text-accent font-semibold shadow-xs"
-                  : "text-muted hover:bg-cream/60 hover:text-foreground"
-              }`}
-            >
-              <span className="font-serif italic text-xs text-muted">f</span>
-              <span>{currentFamilyLabel}</span>
-              <ChevronDown size={12} className="text-muted" />
-            </button>
-          </Tooltip>
-
-          <AnimatePresence>
-            {showFontFamilyPicker && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                className="absolute left-0 top-full mt-2 z-50 flex w-52 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-xl"
+        {/* 2. Colors: Text Font Color & Highlight (Always visible on mobile & desktop) */}
+        <div className="flex items-center gap-0.5">
+          {/* Text Font Color Dropdown */}
+          <div className="relative editor-popover-container">
+            <Tooltip text="Text font color" shortcut="Color">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setShowTextColorPicker(!showTextColorPicker);
+                  setShowHighlightPicker(false);
+                  setShowMobileMore(false);
+                }}
+                className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
+                  showTextColorPicker
+                    ? "bg-cream text-accent font-semibold shadow-xs"
+                    : "text-muted hover:bg-cream/60 hover:text-foreground"
+                }`}
               >
-                <div className="px-2 py-1 text-[10px] font-semibold text-muted border-b border-border/60 mb-1">
-                  Font Style / Typeface
+                <div className="flex flex-col items-center">
+                  <Baseline size={14} />
+                  <span 
+                    className="h-1 w-3.5 rounded-full mt-0.5 border border-black/10" 
+                    style={{ backgroundColor: activeTextColor }} 
+                  />
                 </div>
-                {FONT_FAMILIES.map((fam) => {
-                  const isCurrent = activeFontFamily === fam.value;
-                  return (
-                    <button
-                      key={fam.label}
-                      type="button"
-                      onClick={() => {
-                        editor.chain().focus().setFontFamily(fam.value).run();
-                        setShowFontFamilyPicker(false);
-                      }}
-                      className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition ${
-                        isCurrent
-                          ? "bg-cream text-accent font-semibold"
-                          : "text-muted hover:bg-cream/60 hover:text-foreground"
-                      }`}
-                    >
-                      <span style={{ fontFamily: fam.value }}>{fam.label}</span>
-                      {isCurrent && <Check size={12} className="text-accent" />}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().unsetFontFamily().run();
-                    setShowFontFamilyPicker(false);
-                  }}
-                  className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1 text-xs text-muted hover:text-foreground hover:bg-cream/60 transition"
+              </button>
+            </Tooltip>
+
+            {/* Text Color Popover Grid */}
+            <AnimatePresence>
+              {showTextColorPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="absolute left-0 top-full mt-2 z-50 flex w-56 flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
                 >
-                  <RotateCcw size={11} />
-                  <span>Reset font style</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Font Size Dropdown */}
-        <div className="relative editor-popover-container">
-          <Tooltip text="Font size" shortcut="Size">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowFontSizePicker(!showFontSizePicker);
-                setShowFontFamilyPicker(false);
-                setShowTextColorPicker(false);
-                setShowHighlightPicker(false);
-              }}
-              className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
-                showFontSizePicker
-                  ? "bg-cream text-accent font-semibold shadow-xs"
-                  : "text-muted hover:bg-cream/60 hover:text-foreground"
-              }`}
-            >
-              <span>{currentSizeLabel}</span>
-              <ChevronDown size={12} className="text-muted" />
-            </button>
-          </Tooltip>
-
-          <AnimatePresence>
-            {showFontSizePicker && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                className="absolute left-0 top-full mt-2 z-50 flex w-44 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-xl"
-              >
-                <div className="px-2 py-1 text-[10px] font-semibold text-muted border-b border-border/60 mb-1">
-                  Font Size
-                </div>
-                {FONT_SIZES.map((sz) => {
-                  const isCurrent = activeFontSize === sz.value;
-                  return (
+                  <div className="w-full text-[11px] font-semibold text-muted pb-1 border-b border-border/60">
+                    Text Font Color
+                  </div>
+                  {TEXT_COLORS.map((c) => (
                     <button
-                      key={sz.value}
+                      key={c.name}
                       type="button"
+                      title={c.name}
                       onClick={() => {
-                        editor.chain().focus().setFontSize(sz.value).run();
-                        setShowFontSizePicker(false);
+                        editor.chain().focus().setColor(c.color).run();
+                        setShowTextColorPicker(false);
                       }}
-                      className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition ${
-                        isCurrent
-                          ? "bg-cream text-accent font-semibold"
-                          : "text-muted hover:bg-cream/60 hover:text-foreground"
-                      }`}
-                    >
-                      <span>{sz.name}</span>
-                      <span className="text-[10px] text-muted font-mono">{sz.label}</span>
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().unsetFontSize().run();
-                    setShowFontSizePicker(false);
-                  }}
-                  className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1 text-xs text-muted hover:text-foreground hover:bg-cream/60 transition"
-                >
-                  <RotateCcw size={11} />
-                  <span>Reset to default</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
-
-        {/* Headings */}
-        {button("Normal text", editor.isActive("paragraph") && !activeFontSize, handleParagraphClick, <Type size={15} />, "Paragraph")}
-        {button("Heading 1", editor.isActive("heading", { level: 1 }) || activeFontSize === "32px", () => handleHeadingClick(1), <Heading1 size={15} />, "H1 (32px)")}
-        {button("Heading 2", editor.isActive("heading", { level: 2 }) || activeFontSize === "24px", () => handleHeadingClick(2), <Heading2 size={15} />, "H2 (24px)")}
-        {button("Heading 3", editor.isActive("heading", { level: 3 }) || activeFontSize === "20px", () => handleHeadingClick(3), <Heading3 size={15} />, "H3 (20px)")}
-
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
-
-        {/* Text Formats */}
-        {button("Bold", editor.isActive("bold"), () => editor.chain().focus().toggleBold().run(), <Bold size={15} />, "Ctrl+B")}
-        {button("Italic", editor.isActive("italic"), () => editor.chain().focus().toggleItalic().run(), <Italic size={15} />, "Ctrl+I")}
-        {button("Underline", editor.isActive("underline"), () => editor.chain().focus().toggleUnderline().run(), <UnderlineIcon size={15} />, "Ctrl+U")}
-        {button("Strikethrough", editor.isActive("strike"), () => editor.chain().focus().toggleStrike().run(), <Strikethrough size={15} />, "Alt+Shift+5")}
-
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
-
-        {/* Text Font Color Dropdown */}
-        <div className="relative editor-popover-container">
-          <Tooltip text="Text font color" shortcut="Color">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowTextColorPicker(!showTextColorPicker);
-                setShowHighlightPicker(false);
-              }}
-              className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
-                showTextColorPicker
-                  ? "bg-cream text-accent font-semibold shadow-xs"
-                  : "text-muted hover:bg-cream/60 hover:text-foreground"
-              }`}
-            >
-              <div className="flex flex-col items-center">
-                <Baseline size={14} />
-                <span 
-                  className="h-1 w-3.5 rounded-full mt-0.5 border border-black/10" 
-                  style={{ backgroundColor: activeTextColor }} 
-                />
-              </div>
-            </button>
-          </Tooltip>
-
-          {/* Text Color Popover Grid */}
-          <AnimatePresence>
-            {showTextColorPicker && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                className="absolute left-0 top-full mt-2 z-50 flex w-56 flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
-              >
-                <div className="w-full text-[11px] font-semibold text-muted pb-1 border-b border-border/60">
-                  Text Font Color
-                </div>
-                {TEXT_COLORS.map((c) => (
+                      className="size-6 rounded-full border transition hover:scale-110 active:scale-95"
+                      style={{ backgroundColor: c.color, borderColor: c.border }}
+                    />
+                  ))}
                   <button
-                    key={c.name}
                     type="button"
-                    title={c.name}
                     onClick={() => {
-                      editor.chain().focus().setColor(c.color).run();
+                      editor.chain().focus().unsetColor().run();
                       setShowTextColorPicker(false);
                     }}
-                    className="size-6 rounded-full border transition hover:scale-110 active:scale-95"
-                    style={{ backgroundColor: c.color, borderColor: c.border }}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().unsetColor().run();
-                    setShowTextColorPicker(false);
-                  }}
-                  className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1.5 text-xs text-muted hover:text-foreground hover:bg-cream/60"
+                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1.5 text-xs text-muted hover:text-foreground hover:bg-cream/60"
+                  >
+                    <RotateCcw size={12} />
+                    <span>Reset to default color</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Highlighter Color Dropdown */}
+          <div className="relative editor-popover-container">
+            <Tooltip text="Highlight background" shortcut="Highlighter">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setShowHighlightPicker(!showHighlightPicker);
+                  setShowTextColorPicker(false);
+                  setShowMobileMore(false);
+                }}
+                className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
+                  editor.isActive("highlight") || showHighlightPicker
+                    ? "bg-cream text-accent font-semibold shadow-xs"
+                    : "text-muted hover:bg-cream/60 hover:text-foreground"
+                }`}
+              >
+                <Highlighter size={15} />
+                <span 
+                  className="size-2.5 rounded-full border border-black/10 shadow-2xs" 
+                  style={{ backgroundColor: activeHighlightColor }} 
+                />
+              </button>
+            </Tooltip>
+
+            {/* Highlight Swatches Popover Grid */}
+            <AnimatePresence>
+              {showHighlightPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="absolute left-0 top-full mt-2 z-50 flex w-56 flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
                 >
-                  <RotateCcw size={12} />
-                  <span>Reset to default color</span>
-                </button>
+                  <div className="w-full text-[11px] font-semibold text-muted pb-1 border-b border-border/60">
+                    Highlight Color
+                  </div>
+                  {PASTEL_HIGHLIGHT_COLORS.map((c) => (
+                    <button
+                      key={c.name}
+                      type="button"
+                      title={c.name}
+                      onClick={() => {
+                        editor.chain().focus().toggleHighlight({ color: c.color }).run();
+                        setShowHighlightPicker(false);
+                      }}
+                      className="size-6 rounded-full border transition hover:scale-110 active:scale-95"
+                      style={{ backgroundColor: c.color, borderColor: c.border }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().unsetHighlight().run();
+                      setShowHighlightPicker(false);
+                    }}
+                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1.5 text-xs text-muted hover:text-foreground hover:bg-cream/60"
+                  >
+                    <X size={12} />
+                    <span>Remove highlight</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* 3. MOBILE-ONLY MORE OPTIONS DROPDOWN ("•••") */}
+        <div className="relative editor-popover-container md:hidden">
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setShowMobileMore(!showMobileMore);
+              setShowHighlightPicker(false);
+              setShowTextColorPicker(false);
+            }}
+            className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium transition cursor-pointer ${
+              showMobileMore
+                ? "bg-cream text-accent font-semibold shadow-xs"
+                : "text-muted hover:bg-cream/60 hover:text-foreground"
+            }`}
+            title="More formatting options"
+            aria-label="More formatting options"
+          >
+            <MoreHorizontal size={16} />
+            <span className="text-[11px] font-medium">More</span>
+          </button>
+
+          {/* Minimal Mobile Dropdown for headings, formatting, lists, media */}
+          <AnimatePresence>
+            {showMobileMore && (
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                className="absolute left-0 sm:right-0 top-full mt-2 z-50 w-72 max-w-[88vw] rounded-2xl border border-border bg-white p-3 shadow-2xl space-y-3"
+              >
+                {/* Mobile Headings */}
+                <div>
+                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 px-0.5">
+                    Heading
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { handleParagraphClick(); setShowMobileMore(false); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("paragraph") && !activeFontSize
+                          ? "bg-cream text-accent border-accent/30 font-semibold"
+                          : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                    >
+                      P
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { handleHeadingClick(1); setShowMobileMore(false); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("heading", { level: 1 })
+                          ? "bg-cream text-accent border-accent/30 font-semibold"
+                          : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                    >
+                      H1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { handleHeadingClick(2); setShowMobileMore(false); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("heading", { level: 2 })
+                          ? "bg-cream text-accent border-accent/30 font-semibold"
+                          : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                    >
+                      H2
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { handleHeadingClick(3); setShowMobileMore(false); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("heading", { level: 3 })
+                          ? "bg-cream text-accent border-accent/30 font-semibold"
+                          : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                    >
+                      H3
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Formatting */}
+                <div>
+                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 px-0.5">
+                    Formatting
+                  </div>
+                  <div className="grid grid-cols-5 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { editor.chain().focus().toggleBold().run(); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("bold") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                      title="Bold"
+                    >
+                      <Bold size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { editor.chain().focus().toggleItalic().run(); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("italic") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                      title="Italic"
+                    >
+                      <Italic size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { editor.chain().focus().toggleUnderline().run(); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("underline") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                      title="Underline"
+                    >
+                      <UnderlineIcon size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { editor.chain().focus().toggleStrike().run(); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("strike") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                      title="Strikethrough"
+                    >
+                      <Strikethrough size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { editor.chain().focus().toggleCode().run(); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
+                        editor.isActive("code") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                      title="Inline Code"
+                    >
+                      <Code size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Lists & Media */}
+                <div>
+                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 px-0.5">
+                    Lists & Media
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => { editor.chain().focus().toggleBulletList().run(); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center gap-1.5 transition ${
+                        editor.isActive("bulletList") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                    >
+                      <List size={14} />
+                      <span>Bullets</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { editor.chain().focus().toggleOrderedList().run(); }}
+                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center gap-1.5 transition ${
+                        editor.isActive("orderedList") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
+                      }`}
+                    >
+                      <ListOrdered size={14} />
+                      <span>Numbers</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { inputRef.current?.click(); setShowMobileMore(false); }}
+                      className="h-8 rounded-lg text-xs font-medium border border-border/70 text-muted hover:bg-cream/50 flex items-center justify-center gap-1.5 transition"
+                    >
+                      <ImagePlus size={14} />
+                      <span>Image</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Cut/Copy/Paste */}
+                <div className="pt-2 border-t border-border/70 flex items-center justify-between gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { void handleCut(); setShowMobileMore(false); }}
+                    className="flex-1 py-1.5 rounded-lg border border-border/70 text-[11px] font-medium text-muted hover:bg-cream/50 flex items-center justify-center gap-1"
+                  >
+                    <Scissors size={12} />
+                    <span>Cut</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { void handleCopy(); setShowMobileMore(false); }}
+                    className="flex-1 py-1.5 rounded-lg border border-border/70 text-[11px] font-medium text-muted hover:bg-cream/50 flex items-center justify-center gap-1"
+                  >
+                    <Copy size={12} />
+                    <span>Copy</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { void handlePaste(); setShowMobileMore(false); }}
+                    className="flex-1 py-1.5 rounded-lg border border-border/70 text-[11px] font-medium text-muted hover:bg-cream/50 flex items-center justify-center gap-1"
+                  >
+                    <ClipboardPaste size={12} />
+                    <span>Paste</span>
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Highlighter Color Dropdown */}
-        <div className="relative editor-popover-container">
-          <Tooltip text="Highlight background" shortcut="Highlighter">
+        {/* ======================================================== */}
+        {/* 4. DESKTOP-ONLY FORMATTING OPTIONS (Hidden on mobile)    */}
+        {/* ======================================================== */}
+        <div className="hidden md:flex items-center gap-1 flex-wrap">
+          <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+          {/* Font Style / Typeface Dropdown */}
+          <div className="relative editor-popover-container">
+            <Tooltip text="Font style / typeface" shortcut="Font">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setShowFontFamilyPicker(!showFontFamilyPicker);
+                  setShowFontSizePicker(false);
+                  setShowTextColorPicker(false);
+                  setShowHighlightPicker(false);
+                }}
+                className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
+                  showFontFamilyPicker
+                    ? "bg-cream text-accent font-semibold shadow-xs"
+                    : "text-muted hover:bg-cream/60 hover:text-foreground"
+                }`}
+              >
+                <span className="font-serif italic text-xs text-muted">f</span>
+                <span>{currentFamilyLabel}</span>
+                <ChevronDown size={12} className="text-muted" />
+              </button>
+            </Tooltip>
+
+            <AnimatePresence>
+              {showFontFamilyPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="absolute left-0 top-full mt-2 z-50 flex w-52 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-xl"
+                >
+                  <div className="px-2 py-1 text-[10px] font-semibold text-muted border-b border-border/60 mb-1">
+                    Font Style / Typeface
+                  </div>
+                  {FONT_FAMILIES.map((fam) => {
+                    const isCurrent = activeFontFamily === fam.value;
+                    return (
+                      <button
+                        key={fam.label}
+                        type="button"
+                        onClick={() => {
+                          editor.chain().focus().setFontFamily(fam.value).run();
+                          setShowFontFamilyPicker(false);
+                        }}
+                        className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition ${
+                          isCurrent
+                            ? "bg-cream text-accent font-semibold"
+                            : "text-muted hover:bg-cream/60 hover:text-foreground"
+                        }`}
+                      >
+                        <span style={{ fontFamily: fam.value }}>{fam.label}</span>
+                        {isCurrent && <Check size={12} className="text-accent" />}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().unsetFontFamily().run();
+                      setShowFontFamilyPicker(false);
+                    }}
+                    className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1 text-xs text-muted hover:text-foreground hover:bg-cream/60 transition"
+                  >
+                    <RotateCcw size={11} />
+                    <span>Reset font style</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Font Size Dropdown */}
+          <div className="relative editor-popover-container">
+            <Tooltip text="Font size" shortcut="Size">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setShowFontSizePicker(!showFontSizePicker);
+                  setShowFontFamilyPicker(false);
+                  setShowTextColorPicker(false);
+                  setShowHighlightPicker(false);
+                }}
+                className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
+                  showFontSizePicker
+                    ? "bg-cream text-accent font-semibold shadow-xs"
+                    : "text-muted hover:bg-cream/60 hover:text-foreground"
+                }`}
+              >
+                <span>{currentSizeLabel}</span>
+                <ChevronDown size={12} className="text-muted" />
+              </button>
+            </Tooltip>
+
+            <AnimatePresence>
+              {showFontSizePicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="absolute left-0 top-full mt-2 z-50 flex w-44 flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 shadow-xl"
+                >
+                  <div className="px-2 py-1 text-[10px] font-semibold text-muted border-b border-border/60 mb-1">
+                    Font Size
+                  </div>
+                  {FONT_SIZES.map((sz) => {
+                    const isCurrent = activeFontSize === sz.value;
+                    return (
+                      <button
+                        key={sz.value}
+                        type="button"
+                        onClick={() => {
+                          editor.chain().focus().setFontSize(sz.value).run();
+                          setShowFontSizePicker(false);
+                        }}
+                        className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition ${
+                          isCurrent
+                            ? "bg-cream text-accent font-semibold"
+                            : "text-muted hover:bg-cream/60 hover:text-foreground"
+                        }`}
+                      >
+                        <span>{sz.name}</span>
+                        <span className="text-[10px] text-muted font-mono">{sz.label}</span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().unsetFontSize().run();
+                      setShowFontSizePicker(false);
+                    }}
+                    className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1 text-xs text-muted hover:text-foreground hover:bg-cream/60 transition"
+                  >
+                    <RotateCcw size={11} />
+                    <span>Reset to default</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+          {/* Headings */}
+          {button("Normal text", editor.isActive("paragraph") && !activeFontSize, handleParagraphClick, <Type size={15} />, "Paragraph")}
+          {button("Heading 1", editor.isActive("heading", { level: 1 }) || activeFontSize === "32px", () => handleHeadingClick(1), <Heading1 size={15} />, "H1 (32px)")}
+          {button("Heading 2", editor.isActive("heading", { level: 2 }) || activeFontSize === "24px", () => handleHeadingClick(2), <Heading2 size={15} />, "H2 (24px)")}
+          {button("Heading 3", editor.isActive("heading", { level: 3 }) || activeFontSize === "20px", () => handleHeadingClick(3), <Heading3 size={15} />, "H3 (20px)")}
+
+          <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+          {/* Text Formats */}
+          {button("Bold", editor.isActive("bold"), () => editor.chain().focus().toggleBold().run(), <Bold size={15} />, "Ctrl+B")}
+          {button("Italic", editor.isActive("italic"), () => editor.chain().focus().toggleItalic().run(), <Italic size={15} />, "Ctrl+I")}
+          {button("Underline", editor.isActive("underline"), () => editor.chain().focus().toggleUnderline().run(), <UnderlineIcon size={15} />, "Ctrl+U")}
+          {button("Strikethrough", editor.isActive("strike"), () => editor.chain().focus().toggleStrike().run(), <Strikethrough size={15} />, "Alt+Shift+5")}
+
+          <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+          {/* Lists & Code */}
+          {button("Bulleted list", editor.isActive("bulletList"), () => editor.chain().focus().toggleBulletList().run(), <List size={15} />, "Ctrl+Shift+8")}
+          {button("Numbered list", editor.isActive("orderedList"), () => editor.chain().focus().toggleOrderedList().run(), <ListOrdered size={15} />, "Ctrl+Shift+7")}
+          {button("Inline code", editor.isActive("code"), () => editor.chain().focus().toggleCode().run(), <Code size={15} />, "<>")}
+
+          <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+          {/* Image Upload */}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void uploadImage(file);
+              event.target.value = "";
+            }}
+          />
+          {button("Upload image", false, () => inputRef.current?.click(), <ImagePlus size={15} />, "Max 5MB")}
+
+          <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+          {/* Toolbar Cut / Copy / Paste Actions */}
+          <Tooltip text="Cut selected" shortcut="Ctrl+X">
             <button
               type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowHighlightPicker(!showHighlightPicker);
-                setShowTextColorPicker(false);
-              }}
-              className={`flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition ${
-                editor.isActive("highlight") || showHighlightPicker
-                  ? "bg-cream text-accent font-semibold shadow-xs"
-                  : "text-muted hover:bg-cream/60 hover:text-foreground"
-              }`}
+              onClick={() => void handleCut()}
+              className="flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted hover:bg-cream/60 hover:text-foreground transition"
             >
-              <Highlighter size={15} />
-              <span 
-                className="size-2.5 rounded-full border border-black/10 shadow-2xs" 
-                style={{ backgroundColor: activeHighlightColor }} 
-              />
+              <Scissors size={14} />
             </button>
           </Tooltip>
 
-          {/* Highlight Swatches Popover Grid */}
-          <AnimatePresence>
-            {showHighlightPicker && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                className="absolute left-0 top-full mt-2 z-50 flex w-56 flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
-              >
-                <div className="w-full text-[11px] font-semibold text-muted pb-1 border-b border-border/60">
-                  Highlight Color
-                </div>
-                {PASTEL_HIGHLIGHT_COLORS.map((c) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    title={c.name}
-                    onClick={() => {
-                      editor.chain().focus().toggleHighlight({ color: c.color }).run();
-                      setShowHighlightPicker(false);
-                    }}
-                    className="size-6 rounded-full border transition hover:scale-110 active:scale-95"
-                    style={{ backgroundColor: c.color, borderColor: c.border }}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().unsetHighlight().run();
-                    setShowHighlightPicker(false);
-                  }}
-                  className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background py-1.5 text-xs text-muted hover:text-foreground hover:bg-cream/60"
-                >
-                  <X size={12} />
-                  <span>Remove highlight</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <Tooltip text="Copy selected" shortcut="Ctrl+C">
+            <button
+              type="button"
+              onClick={() => void handleCopy()}
+              className="flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted hover:bg-cream/60 hover:text-foreground transition"
+            >
+              {hasCopied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+            </button>
+          </Tooltip>
+
+          <Tooltip text="Paste from clipboard" shortcut="Ctrl+V">
+            <button
+              type="button"
+              onClick={() => void handlePaste()}
+              className="flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted hover:bg-cream/60 hover:text-foreground transition"
+            >
+              <ClipboardPaste size={14} />
+            </button>
+          </Tooltip>
         </div>
-
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
-
-        {/* Lists & Code */}
-        {button("Bulleted list", editor.isActive("bulletList"), () => editor.chain().focus().toggleBulletList().run(), <List size={15} />, "Ctrl+Shift+8")}
-        {button("Numbered list", editor.isActive("orderedList"), () => editor.chain().focus().toggleOrderedList().run(), <ListOrdered size={15} />, "Ctrl+Shift+7")}
-        {button("Inline code", editor.isActive("code"), () => editor.chain().focus().toggleCode().run(), <Code size={15} />, "<>")}
-
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
-
-        {/* Image Upload */}
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void uploadImage(file);
-            event.target.value = "";
-          }}
-        />
-        {button("Upload image", false, () => inputRef.current?.click(), <ImagePlus size={15} />, "Max 5MB")}
-
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
-
-        {/* Toolbar Cut / Copy / Paste Actions */}
-        <Tooltip text="Cut selected" shortcut="Ctrl+X">
-          <button
-            type="button"
-            onClick={() => void handleCut()}
-            className="flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted hover:bg-cream/60 hover:text-foreground transition"
-          >
-            <Scissors size={14} />
-          </button>
-        </Tooltip>
-
-        <Tooltip text="Copy selected" shortcut="Ctrl+C">
-          <button
-            type="button"
-            onClick={() => void handleCopy()}
-            className="flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted hover:bg-cream/60 hover:text-foreground transition"
-          >
-            {hasCopied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-          </button>
-        </Tooltip>
-
-        <Tooltip text="Paste from clipboard" shortcut="Ctrl+V">
-          <button
-            type="button"
-            onClick={() => void handlePaste()}
-            className="flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted hover:bg-cream/60 hover:text-foreground transition"
-          >
-            <ClipboardPaste size={14} />
-          </button>
-        </Tooltip>
       </div>
 
       {/* Editor Content Area */}

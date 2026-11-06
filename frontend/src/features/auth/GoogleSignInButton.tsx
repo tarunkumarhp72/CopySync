@@ -37,11 +37,11 @@ export function GoogleSignInButton() {
     const clientW = parent ? Math.floor(parent.clientWidth || parent.getBoundingClientRect().width) : 280;
 
     // Google GSI strictly accepts an integer width between 200 and 400.
-    // We cap width to 320px on mobile to guarantee generous margins and zero clipping.
-    const targetWidth = Math.min(320, Math.max(200, clientW > 30 ? clientW - 16 : 280));
+    // 280-320px fits all mobile devices (from 320px viewport upwards) perfectly with zero horizontal scroll.
+    const targetWidth = Math.min(320, Math.max(220, clientW > 30 ? clientW - 20 : 280));
 
-    // Avoid unnecessary re-renders if width hasn't meaningfully changed
-    if (Math.abs(lastWidthRef.current - targetWidth) < 6 && mountRef.current.hasChildNodes()) {
+    // Avoid unnecessary re-renders if already rendered with acceptable width
+    if (mountRef.current.hasChildNodes() && Math.abs(lastWidthRef.current - targetWidth) < 20) {
       return;
     }
     lastWidthRef.current = targetWidth;
@@ -54,8 +54,6 @@ export function GoogleSignInButton() {
       size: "large",
       type: "standard",
       shape: "rectangular",
-      // Using 'signin_with' ensures the lengthy email string is never rendered inside the button,
-      // completely preventing the Google 'G' icon from being pushed or clipped on the right.
       text: "signin_with",
       width: targetWidth,
       logo_alignment: "left",
@@ -123,7 +121,12 @@ export function GoogleSignInButton() {
           });
 
           renderGoogleButton();
-          window.google.accounts.id.prompt();
+
+          // Only prompt One Tap on desktop devices; on mobile devices One Tap/FedCM can freeze or conflict with button taps
+          const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+          if (!isTouchDevice) {
+            window.google.accounts.id.prompt();
+          }
         };
 
         const existing = document.querySelector<HTMLScriptElement>(
@@ -157,8 +160,7 @@ export function GoogleSignInButton() {
     };
   }, [renderGoogleButton]);
 
-  // Dynamically re-render button ONLY when horizontal width changes (orientation change, window resize)
-  // Ignoring vertical address-bar shifts during mobile scroll to prevent scroll stutter
+  // Dynamically re-render button ONLY when substantial horizontal width changes (orientation change, large window resize)
   useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -169,12 +171,13 @@ export function GoogleSignInButton() {
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const newWidth = Math.floor(entry.contentRect.width);
-        if (Math.abs(newWidth - prevWidth) >= 12) {
+        // Only re-render if width meaningfully changes by >= 40px (e.g. tablet to phone, or screen rotate)
+        if (Math.abs(newWidth - prevWidth) >= 40) {
           prevWidth = newWidth;
           clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
             renderGoogleButton();
-          }, 150);
+          }, 200);
         }
       }
     });
@@ -198,10 +201,10 @@ export function GoogleSignInButton() {
         </div>
       )}
 
-      {/* Google button mount point - centered, never clipped */}
+      {/* Google button mount point - centered, never clipped, full touch support */}
       <div
         ref={mountRef}
-        className="min-h-[44px] w-full flex justify-center items-center"
+        className="min-h-[44px] w-full flex justify-center items-center pointer-events-auto touch-manipulation relative z-10"
       />
 
       {!ready && !error && (

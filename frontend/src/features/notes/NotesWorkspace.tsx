@@ -15,6 +15,8 @@ import {
   Smartphone,
   Loader2,
   Clock,
+  Bell,
+  CheckCheck,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { notesService } from "@/services/notes.service";
@@ -54,9 +56,30 @@ export function NotesWorkspace({
 
   // Loading States
   const [isLoadingNotes, setIsLoadingNotes] = useState(true);
+  const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [isLoadingActiveNote, setIsLoadingActiveNote] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
+
+  // Authenticated User Profile & Notification state for sidebar
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; name?: string | null } | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: "1",
+      title: "Encrypted Sync Active",
+      description: "Notes stream seamlessly across your devices",
+      time: "Just now",
+      unread: true,
+    },
+    {
+      id: "2",
+      title: "Permanent Cloud Workspace",
+      description: "Signed in and saved securely",
+      time: "Active",
+      unread: false,
+    },
+  ]);
 
   // Custom Confirm Modal State (Replaces all browser confirm() dialogs)
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -140,12 +163,29 @@ export function NotesWorkspace({
       setError(cause instanceof Error ? cause.message : "Unable to load notes.");
     } finally {
       setIsLoadingNotes(false);
+      setIsInitialLoadDone(true);
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Fetch current user details for the sidebar if authenticated
+  useEffect(() => {
+    if (isGuest) return;
+    const api = process.env.NEXT_PROD_API_URL;
+    const token = typeof window !== "undefined" ? localStorage.getItem("copysync_token") : null;
+    fetch(`${api}/auth/me`, {
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setCurrentUser(data);
+      })
+      .catch(() => {});
+  }, [isGuest]);
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
@@ -657,16 +697,94 @@ export function NotesWorkspace({
           </motion.button>
         </div>
       ) : (
-        /* Authenticated Sign Out Button */
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => void logout()}
-          className="mt-4 flex w-full items-center gap-2 rounded-sm border border-border bg-white px-3 py-2.5 text-sm font-medium text-muted hover:text-foreground hover:bg-cream transition cursor-pointer"
-        >
-          <LogOut size={16} />
-          <span>Sign out</span>
-        </motion.button>
+        /* Authenticated User Detail & Sign Out Footer */
+        <div className="mt-4 pt-3 border-t border-border/70 space-y-2">
+          {/* User Profile Card with Notification Icon (Screenshot 4) */}
+          <div className="relative">
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-white p-2.5 border border-border/80 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent font-semibold text-xs border border-accent/25">
+                  {currentUser?.name
+                    ? currentUser.name.slice(0, 2).toUpperCase()
+                    : currentUser?.email
+                    ? currentUser.email.slice(0, 2).toUpperCase()
+                    : "U"}
+                </div>
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {currentUser?.name || currentUser?.email?.split("@")[0] || "My Workspace"}
+                  </p>
+                  <p className="text-[10px] text-muted truncate">
+                    {currentUser?.email || "Google Account"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Notification Bell with Badge & Dropdown */}
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`relative grid size-8 place-items-center rounded-full border border-border/80 text-stone-700 transition cursor-pointer ${
+                    showNotifications ? "bg-cream ring-2 ring-accent/20" : "bg-cream/40 hover:bg-cream"
+                  }`}
+                  title="Notifications"
+                  aria-label="View notifications"
+                >
+                  <Bell size={15} />
+                  {notifications.some((n) => n.unread) && (
+                    <span className="absolute top-1 right-1 size-2 rounded-full bg-amber-500 ring-2 ring-white" />
+                  )}
+                </button>
+
+                {/* Notifications Popover Dropdown */}
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                      className="absolute bottom-full right-0 mb-2 w-64 rounded-xl border border-border/90 bg-white p-3 text-stone-800 shadow-xl backdrop-blur-md z-50"
+                    >
+                      <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                        <span className="text-xs font-semibold text-foreground">Notifications</span>
+                        <button
+                          type="button"
+                          onClick={() => setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })))}
+                          className="flex items-center gap-1 text-[10px] text-muted hover:text-foreground transition cursor-pointer"
+                        >
+                          <CheckCheck size={11} />
+                          <span>Mark read</span>
+                        </button>
+                      </div>
+                      <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
+                        {notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`p-2 rounded-lg text-left ${n.unread ? "bg-amber-50/70 border border-amber-100" : "hover:bg-cream/40"}`}
+                          >
+                            <p className="text-xs font-medium text-foreground">{n.title}</p>
+                            <p className="text-[10px] text-muted leading-tight mt-0.5">{n.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => void logout()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-xs font-medium text-muted hover:text-foreground hover:bg-cream transition cursor-pointer"
+          >
+            <LogOut size={14} />
+            <span>Sign out</span>
+          </motion.button>
+        </div>
       )}
     </aside>
   );
@@ -677,19 +795,27 @@ export function NotesWorkspace({
         {/* Desktop Sidebar */}
         <div className="hidden border-r border-border md:block">{sidebar}</div>
 
-        {/* Mobile Slide-over Sidebar */}
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-20 bg-black/30 md:hidden">
-            <motion.div
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              className="h-full w-[min(86vw,320px)] bg-[#fcfbf8]"
-            >
-              {sidebar}
-            </motion.div>
-          </div>
-        )}
+        {/* Mobile Slide-over Sidebar with z-50 to prevent any rich text toolbar overlap */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs md:hidden">
+              <div
+                className="absolute inset-0"
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Close sidebar overlay"
+              />
+              <motion.div
+                initial={{ x: -320 }}
+                animate={{ x: 0 }}
+                exit={{ x: -320 }}
+                transition={{ type: "spring", stiffness: 320, damping: 30 }}
+                className="relative z-50 h-full w-[min(86vw,320px)] bg-[#fcfbf8] shadow-2xl overflow-y-auto"
+              >
+                {sidebar}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Main Note Canvas */}
         <section className="flex min-h-0 min-w-0 flex-col">
@@ -819,8 +945,8 @@ export function NotesWorkspace({
             </div>
           )}
 
-          {/* Active Note, Loading Skeleton, or Empty State */}
-          {isLoadingActiveNote ? (
+          {/* Active Note, Loading Skeleton, or Empty State (prevents flash of empty state on initial load) */}
+          {!isInitialLoadDone || isLoadingActiveNote ? (
             <NoteEditorSkeleton />
           ) : active ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-12 sm:py-8">

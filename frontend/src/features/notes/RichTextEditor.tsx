@@ -860,10 +860,10 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
       <div 
         role="toolbar" 
         aria-label="Text formatting" 
-        className="note-toolbar relative z-20 flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-white p-1.5 shadow-2xs max-w-full select-none"
+        className="note-toolbar relative z-20 flex flex-nowrap md:flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-white p-1.5 shadow-2xs max-w-full select-none [&>*]:shrink-0"
       >
         {/* 1. Undo / Redo Group */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           <Tooltip text="Undo" shortcut="Ctrl+Z">
             <button
               type="button"
@@ -895,19 +895,19 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
           </Tooltip>
         </div>
 
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+        <span className="mx-0.5 sm:mx-1 h-4 w-px shrink-0 bg-border/80" />
 
         {/* 2. Common Text Formats: Bold, Italic, Underline (Visible across mobile & desktop) */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {button("Bold", editor.isActive("bold"), () => editor.chain().focus().toggleBold().run(), <Bold size={15} />, "Ctrl+B")}
           {button("Italic", editor.isActive("italic"), () => editor.chain().focus().toggleItalic().run(), <Italic size={15} />, "Ctrl+I")}
           {button("Underline", editor.isActive("underline"), () => editor.chain().focus().toggleUnderline().run(), <UnderlineIcon size={15} />, "Ctrl+U")}
         </div>
 
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+        <span className="mx-0.5 sm:mx-1 h-4 w-px shrink-0 bg-border/80" />
 
         {/* 3. Colors: Text Font Color & Highlight */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {/* Text Font Color Dropdown */}
           <div className="relative editor-popover-container">
             <Tooltip text="Text font color" shortcut="Color">
@@ -1043,13 +1043,8 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
           </div>
         </div>
 
-        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
-
-        {/* 4. Common Lists (Bullet List) */}
-        {button("Bulleted list", editor.isActive("bulletList"), () => editor.chain().focus().toggleBulletList().run(), <List size={15} />, "Ctrl+Shift+8")}
-
-        {/* 5. MOBILE MORE OPTIONS BUTTON ("•••") - Anchored with right-0 so it expands inside the screen */}
-        <div className="relative editor-popover-container md:hidden ml-auto">
+        {/* 4. MOBILE MORE OPTIONS BUTTON ("•••") - Anchored with right-0 so it expands inside the screen */}
+        <div className="relative editor-popover-container md:hidden ml-auto shrink-0">
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -1165,6 +1160,16 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
                 <div className="px-2 pt-1 pb-1 text-[10px] font-bold text-muted uppercase tracking-wider">
                   Lists & Media
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { editor.chain().focus().toggleBulletList().run(); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("bulletList") ? "bg-cream text-accent font-semibold" : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <List size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Bulleted list</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => { editor.chain().focus().toggleOrderedList().run(); setShowMobileMore(false); }}
@@ -1383,7 +1388,8 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
 
           <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
 
-          {/* Numbered List & Code */}
+          {/* Lists & Code */}
+          {button("Bulleted list", editor.isActive("bulletList"), () => editor.chain().focus().toggleBulletList().run(), <List size={15} />, "Ctrl+Shift+8")}
           {button("Numbered list", editor.isActive("orderedList"), () => editor.chain().focus().toggleOrderedList().run(), <ListOrdered size={15} />, "Ctrl+Shift+7")}
           {button("Inline code", editor.isActive("code"), () => editor.chain().focus().toggleCode().run(), <Code size={15} />, "<>")}
 

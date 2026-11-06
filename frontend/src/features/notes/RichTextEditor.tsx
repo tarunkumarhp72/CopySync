@@ -862,7 +862,7 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
         aria-label="Text formatting" 
         className="note-toolbar relative z-20 flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-white p-1.5 shadow-2xs max-w-full select-none"
       >
-        {/* 1. Undo / Redo Group (Always visible on mobile & desktop) */}
+        {/* 1. Undo / Redo Group */}
         <div className="flex items-center gap-0.5">
           <Tooltip text="Undo" shortcut="Ctrl+Z">
             <button
@@ -897,7 +897,16 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
 
         <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
 
-        {/* 2. Colors: Text Font Color & Highlight (Always visible on mobile & desktop) */}
+        {/* 2. Common Text Formats: Bold, Italic, Underline (Visible across mobile & desktop) */}
+        <div className="flex items-center gap-0.5">
+          {button("Bold", editor.isActive("bold"), () => editor.chain().focus().toggleBold().run(), <Bold size={15} />, "Ctrl+B")}
+          {button("Italic", editor.isActive("italic"), () => editor.chain().focus().toggleItalic().run(), <Italic size={15} />, "Ctrl+I")}
+          {button("Underline", editor.isActive("underline"), () => editor.chain().focus().toggleUnderline().run(), <UnderlineIcon size={15} />, "Ctrl+U")}
+        </div>
+
+        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+        {/* 3. Colors: Text Font Color & Highlight */}
         <div className="flex items-center gap-0.5">
           {/* Text Font Color Dropdown */}
           <div className="relative editor-popover-container">
@@ -1034,8 +1043,13 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
           </div>
         </div>
 
-        {/* 3. MOBILE-ONLY MORE OPTIONS DROPDOWN ("•••") */}
-        <div className="relative editor-popover-container md:hidden">
+        <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
+
+        {/* 4. Common Lists (Bullet List) */}
+        {button("Bulleted list", editor.isActive("bulletList"), () => editor.chain().focus().toggleBulletList().run(), <List size={15} />, "Ctrl+Shift+8")}
+
+        {/* 5. MOBILE MORE OPTIONS BUTTON ("•••") - Anchored with right-0 so it expands inside the screen */}
+        <div className="relative editor-popover-container md:hidden ml-auto">
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -1056,198 +1070,157 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
             <span className="text-[11px] font-medium">More</span>
           </button>
 
-          {/* Minimal Mobile Dropdown for headings, formatting, lists, media */}
+          {/* Clean Vertical Dropdown List (One by one, not square grid, never goes outside window) */}
           <AnimatePresence>
             {showMobileMore && (
               <motion.div
                 initial={{ opacity: 0, y: 6, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                className="absolute left-0 sm:right-0 top-full mt-2 z-50 w-72 max-w-[88vw] rounded-2xl border border-border bg-white p-3 shadow-2xl space-y-3"
+                className="absolute right-0 top-full mt-2 z-50 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-white p-2 shadow-2xl max-h-[75vh] overflow-y-auto space-y-0.5"
               >
-                {/* Mobile Headings */}
-                <div>
-                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 px-0.5">
-                    Heading
-                  </div>
-                  <div className="grid grid-cols-4 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => { handleParagraphClick(); setShowMobileMore(false); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("paragraph") && !activeFontSize
-                          ? "bg-cream text-accent border-accent/30 font-semibold"
-                          : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                    >
-                      P
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { handleHeadingClick(1); setShowMobileMore(false); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("heading", { level: 1 })
-                          ? "bg-cream text-accent border-accent/30 font-semibold"
-                          : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                    >
-                      H1
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { handleHeadingClick(2); setShowMobileMore(false); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("heading", { level: 2 })
-                          ? "bg-cream text-accent border-accent/30 font-semibold"
-                          : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                    >
-                      H2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { handleHeadingClick(3); setShowMobileMore(false); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("heading", { level: 3 })
-                          ? "bg-cream text-accent border-accent/30 font-semibold"
-                          : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                    >
-                      H3
-                    </button>
-                  </div>
+                {/* Section: Headings */}
+                <div className="px-2 pt-1 pb-1 text-[10px] font-bold text-muted uppercase tracking-wider">
+                  Headings
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { handleParagraphClick(); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("paragraph") && !activeFontSize
+                      ? "bg-cream text-accent font-semibold"
+                      : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <Type size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Normal text</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleHeadingClick(1); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("heading", { level: 1 })
+                      ? "bg-cream text-accent font-semibold"
+                      : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <Heading1 size={15} className="shrink-0 text-accent" />
+                  <span className="text-xs">Heading 1 (32px)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleHeadingClick(2); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("heading", { level: 2 })
+                      ? "bg-cream text-accent font-semibold"
+                      : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <Heading2 size={15} className="shrink-0 text-accent" />
+                  <span className="text-xs">Heading 2 (24px)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleHeadingClick(3); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("heading", { level: 3 })
+                      ? "bg-cream text-accent font-semibold"
+                      : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <Heading3 size={15} className="shrink-0 text-accent" />
+                  <span className="text-xs">Heading 3 (20px)</span>
+                </button>
 
-                {/* Mobile Formatting */}
-                <div>
-                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 px-0.5">
-                    Formatting
-                  </div>
-                  <div className="grid grid-cols-5 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => { editor.chain().focus().toggleBold().run(); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("bold") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                      title="Bold"
-                    >
-                      <Bold size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { editor.chain().focus().toggleItalic().run(); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("italic") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                      title="Italic"
-                    >
-                      <Italic size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { editor.chain().focus().toggleUnderline().run(); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("underline") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                      title="Underline"
-                    >
-                      <UnderlineIcon size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { editor.chain().focus().toggleStrike().run(); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("strike") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                      title="Strikethrough"
-                    >
-                      <Strikethrough size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { editor.chain().focus().toggleCode().run(); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center transition ${
-                        editor.isActive("code") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                      title="Inline Code"
-                    >
-                      <Code size={14} />
-                    </button>
-                  </div>
-                </div>
+                <div className="my-1.5 border-t border-border/70" />
 
-                {/* Mobile Lists & Media */}
-                <div>
-                  <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5 px-0.5">
-                    Lists & Media
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => { editor.chain().focus().toggleBulletList().run(); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center gap-1.5 transition ${
-                        editor.isActive("bulletList") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                    >
-                      <List size={14} />
-                      <span>Bullets</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { editor.chain().focus().toggleOrderedList().run(); }}
-                      className={`h-8 rounded-lg text-xs font-medium border flex items-center justify-center gap-1.5 transition ${
-                        editor.isActive("orderedList") ? "bg-cream text-accent border-accent/30 font-bold" : "border-border/70 text-muted hover:bg-cream/50"
-                      }`}
-                    >
-                      <ListOrdered size={14} />
-                      <span>Numbers</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { inputRef.current?.click(); setShowMobileMore(false); }}
-                      className="h-8 rounded-lg text-xs font-medium border border-border/70 text-muted hover:bg-cream/50 flex items-center justify-center gap-1.5 transition"
-                    >
-                      <ImagePlus size={14} />
-                      <span>Image</span>
-                    </button>
-                  </div>
+                {/* Section: Extra Styling */}
+                <div className="px-2 pt-1 pb-1 text-[10px] font-bold text-muted uppercase tracking-wider">
+                  Formatting
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { editor.chain().focus().toggleStrike().run(); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("strike") ? "bg-cream text-accent font-semibold" : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <Strikethrough size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Strikethrough</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { editor.chain().focus().toggleCode().run(); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("code") ? "bg-cream text-accent font-semibold" : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <Code size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Inline code</span>
+                </button>
 
-                {/* Mobile Cut/Copy/Paste */}
-                <div className="pt-2 border-t border-border/70 flex items-center justify-between gap-1">
-                  <button
-                    type="button"
-                    onClick={() => { void handleCut(); setShowMobileMore(false); }}
-                    className="flex-1 py-1.5 rounded-lg border border-border/70 text-[11px] font-medium text-muted hover:bg-cream/50 flex items-center justify-center gap-1"
-                  >
-                    <Scissors size={12} />
-                    <span>Cut</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { void handleCopy(); setShowMobileMore(false); }}
-                    className="flex-1 py-1.5 rounded-lg border border-border/70 text-[11px] font-medium text-muted hover:bg-cream/50 flex items-center justify-center gap-1"
-                  >
-                    <Copy size={12} />
-                    <span>Copy</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { void handlePaste(); setShowMobileMore(false); }}
-                    className="flex-1 py-1.5 rounded-lg border border-border/70 text-[11px] font-medium text-muted hover:bg-cream/50 flex items-center justify-center gap-1"
-                  >
-                    <ClipboardPaste size={12} />
-                    <span>Paste</span>
-                  </button>
+                <div className="my-1.5 border-t border-border/70" />
+
+                {/* Section: Lists & Media */}
+                <div className="px-2 pt-1 pb-1 text-[10px] font-bold text-muted uppercase tracking-wider">
+                  Lists & Media
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { editor.chain().focus().toggleOrderedList().run(); setShowMobileMore(false); }}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition cursor-pointer ${
+                    editor.isActive("orderedList") ? "bg-cream text-accent font-semibold" : "text-foreground hover:bg-cream/60"
+                  }`}
+                >
+                  <ListOrdered size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Numbered list</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { inputRef.current?.click(); setShowMobileMore(false); }}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left text-foreground hover:bg-cream/60 transition cursor-pointer"
+                >
+                  <ImagePlus size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Upload image</span>
+                </button>
+
+                <div className="my-1.5 border-t border-border/70" />
+
+                {/* Section: Clipboard Actions */}
+                <div className="px-2 pt-1 pb-1 text-[10px] font-bold text-muted uppercase tracking-wider">
+                  Clipboard
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { void handleCut(); setShowMobileMore(false); }}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left text-foreground hover:bg-cream/60 transition cursor-pointer"
+                >
+                  <Scissors size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Cut selection</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { void handleCopy(); setShowMobileMore(false); }}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left text-foreground hover:bg-cream/60 transition cursor-pointer"
+                >
+                  <Copy size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Copy selection</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { void handlePaste(); setShowMobileMore(false); }}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left text-foreground hover:bg-cream/60 transition cursor-pointer"
+                >
+                  <ClipboardPaste size={15} className="shrink-0 text-muted" />
+                  <span className="text-xs">Paste from clipboard</span>
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* ======================================================== */}
-        {/* 4. DESKTOP-ONLY FORMATTING OPTIONS (Hidden on mobile)    */}
+        {/* 6. DESKTOP-ONLY FORMATTING OPTIONS (Hidden on mobile)    */}
         {/* ======================================================== */}
         <div className="hidden md:flex items-center gap-1 flex-wrap">
           <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
@@ -1405,16 +1378,12 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
 
           <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
 
-          {/* Text Formats */}
-          {button("Bold", editor.isActive("bold"), () => editor.chain().focus().toggleBold().run(), <Bold size={15} />, "Ctrl+B")}
-          {button("Italic", editor.isActive("italic"), () => editor.chain().focus().toggleItalic().run(), <Italic size={15} />, "Ctrl+I")}
-          {button("Underline", editor.isActive("underline"), () => editor.chain().focus().toggleUnderline().run(), <UnderlineIcon size={15} />, "Ctrl+U")}
+          {/* Strikethrough (Bold, Italic, Underline are already in primary group) */}
           {button("Strikethrough", editor.isActive("strike"), () => editor.chain().focus().toggleStrike().run(), <Strikethrough size={15} />, "Alt+Shift+5")}
 
           <span className="mx-1 h-4 w-px shrink-0 bg-border/80" />
 
-          {/* Lists & Code */}
-          {button("Bulleted list", editor.isActive("bulletList"), () => editor.chain().focus().toggleBulletList().run(), <List size={15} />, "Ctrl+Shift+8")}
+          {/* Numbered List & Code */}
           {button("Numbered list", editor.isActive("orderedList"), () => editor.chain().focus().toggleOrderedList().run(), <ListOrdered size={15} />, "Ctrl+Shift+7")}
           {button("Inline code", editor.isActive("code"), () => editor.chain().focus().toggleCode().run(), <Code size={15} />, "<>")}
 

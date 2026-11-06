@@ -81,6 +81,8 @@ export function NotesWorkspace({
   const activeRef = useRef<Note>();
   activeRef.current = active;
   const wsRef = useRef<WebSocket | null>(null);
+  const isSavingRef = useRef(false);
+  const pendingUpdateRef = useRef<{ id: string; title: string; content: string } | null>(null);
 
   // Check guest state from prop or local storage
   useEffect(() => {
@@ -303,25 +305,70 @@ export function NotesWorkspace({
     }
   };
 
+  const executeSave = async (noteId: string, title: string, content: string, version: number) => {
+    isSavingRef.current = true;
+    setSaveState("saving");
+    try {
+      const saved = await notesService.update(noteId, {
+        title,
+        content,
+        expected_version: version,
+      });
+
+      // Update active note version without blowing away local edits
+      setActive((curr) => {
+        if (!curr || curr.id !== saved.id) return curr;
+        return { ...curr, version: saved.version, updated_at: saved.updated_at };
+      });
+      setNotes((items) => items.map((item) => (item.id === saved.id ? { ...item, ...saved } : item)));
+
+      // If more typing occurred while saving was in-flight, save the pending updates immediately
+      if (pendingUpdateRef.current && pendingUpdateRef.current.id === saved.id) {
+        const next = pendingUpdateRef.current;
+        pendingUpdateRef.current = null;
+        await executeSave(next.id, next.title, next.content, saved.version);
+        return;
+      }
+
+      setSaveState("saved");
+    } catch (cause: unknown) {
+      // If version conflict occurred, fetch latest note version and retry with user's current content
+      // @ts-expect-error status check
+      if (cause?.status === 409 || (cause instanceof Error && cause.message.toLowerCase().includes("conflict"))) {
+        try {
+          const fresh = await notesService.get(noteId);
+          setActive((curr) => (curr && curr.id === noteId ? { ...curr, version: fresh.version } : curr));
+          const latestContent = pendingUpdateRef.current?.content ?? content;
+          const latestTitle = pendingUpdateRef.current?.title ?? title;
+          pendingUpdateRef.current = null;
+          await executeSave(noteId, latestTitle, latestContent, fresh.version);
+          return;
+        } catch {
+          // If recovery fails, notify user
+        }
+      }
+      setSaveState("error");
+      setError(cause instanceof Error ? cause.message : "Could not save changes.");
+    } finally {
+      isSavingRef.current = false;
+    }
+  };
+
   const persist = (next: Note) => {
     if (timer.current) clearTimeout(timer.current);
+    pendingUpdateRef.current = { id: next.id, title: next.title, content: next.content };
     setSaveState("saving");
+
     timer.current = setTimeout(() => {
-      void (async () => {
-        try {
-          const saved = await notesService.update(next.id, {
-            title: next.title,
-            content: next.content,
-            expected_version: next.version,
-          });
-          setActive(saved);
-          setNotes((items) => items.map((item) => (item.id === saved.id ? saved : item)));
-          setSaveState("saved");
-        } catch (cause) {
-          setSaveState("error");
-          setError(cause instanceof Error ? cause.message : "Could not save changes.");
-        }
-      })();
+      if (isSavingRef.current) {
+        // A save is already in-flight; when it completes, it will automatically process pendingUpdateRef
+        return;
+      }
+      const pending = pendingUpdateRef.current;
+      if (pending) {
+        pendingUpdateRef.current = null;
+        void executeSave(pending.id, pending.title, pending.content, next.version);
+      }
     }, 400);
   };
 
@@ -647,55 +694,72 @@ export function NotesWorkspace({
         {/* Main Note Canvas */}
         <section className="flex min-h-0 min-w-0 flex-col">
           {/* Header Masthead */}
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4 sm:px-8">
-            <div className="flex items-center gap-3">
+          <header className="flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-border px-3 sm:px-8 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <button
-                className="p-2 md:hidden text-muted hover:text-foreground"
+                className="p-1.5 md:hidden text-muted hover:text-foreground shrink-0 cursor-pointer"
                 onClick={() => setSidebarOpen(true)}
+                aria-label="Open sidebar"
               >
-                <Menu size={19} />
+                <Menu size={20} />
               </button>
 
-              {/* Morphing Auto-Save Status Pill */}
-              <div className="flex items-center">
+              {/* On mobile: compact title input directly in header */}
+              {active && (
+                <div className="block md:hidden flex-1 min-w-0 pr-1">
+                  <input
+                    value={active.title}
+                    onChange={(event) => edit("title", event.target.value)}
+                    placeholder="Untitled Note"
+                    className="w-full text-sm font-semibold truncate bg-transparent outline-none text-foreground border-b border-transparent focus:border-border/60 py-0.5"
+                    aria-label="Note title"
+                  />
+                </div>
+              )}
+
+              {/* Morphing Auto-Save Status: Minimal Icon on Mobile, Full on Desktop */}
+              <div className="flex items-center shrink-0">
                 <AnimatePresence mode="wait">
                   {saveState === "saving" ? (
                     <motion.div
                       key="saving"
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      className="flex items-center gap-1.5 rounded-full bg-cream px-3 py-1 text-xs text-muted"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      title="Saving changes..."
+                      className="flex items-center gap-1.5 rounded-full bg-cream px-2 py-1 sm:px-3 text-xs text-muted"
                     >
-                      <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      <span>Saving changes...</span>
+                      <Loader2 size={13} className="animate-spin text-accent shrink-0" />
+                      <span className="hidden sm:inline">Saving changes...</span>
                     </motion.div>
                   ) : saveState === "saved" ? (
                     <motion.div
                       key="saved"
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      title="All changes saved"
+                      className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 sm:px-3 text-xs text-emerald-800"
                     >
-                      <Check size={12} className="text-emerald-600" />
-                      <span>All changes saved</span>
+                      <Check size={13} className="text-emerald-600 shrink-0" />
+                      <span className="hidden sm:inline">All changes saved</span>
                     </motion.div>
                   ) : saveState === "error" ? (
                     <motion.div
                       key="error"
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      className="flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs text-red-700"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      title="Save error"
+                      className="flex items-center gap-1.5 rounded-full bg-red-50 px-2 py-1 sm:px-3 text-xs text-red-700"
                     >
-                      <AlertCircle size={12} />
-                      <span>Save error</span>
+                      <AlertCircle size={13} className="text-red-600 shrink-0" />
+                      <span className="hidden sm:inline">Save error</span>
                     </motion.div>
                   ) : (
-                    <div className="flex items-center gap-1.5 rounded-full bg-cream/50 px-3 py-1 text-xs text-muted">
-                      <Check size={12} />
-                      <span>All changes saved</span>
+                    <div title="All changes saved" className="flex items-center gap-1.5 rounded-full bg-cream/50 px-2 py-1 sm:px-3 text-xs text-muted">
+                      <Check size={13} className="shrink-0" />
+                      <span className="hidden sm:inline">All changes saved</span>
                     </div>
                   )}
                 </AnimatePresence>
@@ -703,8 +767,8 @@ export function NotesWorkspace({
 
               {/* Guest Live Paired Indicator & Session Countdown */}
               {isGuest && (
-                <div className="flex items-center gap-2">
-                  <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-2.5 py-0.5 text-xs text-emerald-800 font-medium">
+                <div className="hidden sm:flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-2.5 py-0.5 text-xs text-emerald-800 font-medium">
                     <Smartphone size={12} className="text-emerald-700" />
                     <span>Phone Connected • {notes.length}/3 Notes</span>
                   </div>
@@ -759,11 +823,12 @@ export function NotesWorkspace({
           {isLoadingActiveNote ? (
             <NoteEditorSkeleton />
           ) : active ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-8 sm:px-12">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-12 sm:py-8">
+              {/* Desktop-only large title (on mobile it is in the top header) */}
               <input
                 value={active.title}
                 onChange={(event) => edit("title", event.target.value)}
-                className="w-full text-3xl font-semibold tracking-tight outline-none text-foreground border-b border-transparent focus:border-border/60 pb-1 transition placeholder:text-muted/60"
+                className="hidden md:block w-full text-3xl font-semibold tracking-tight outline-none text-foreground border-b border-transparent focus:border-border/60 pb-1 mb-2 transition placeholder:text-muted/60"
                 aria-label="Note title"
                 placeholder="Untitled Note"
               />

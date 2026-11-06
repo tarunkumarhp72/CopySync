@@ -857,7 +857,7 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
       <div 
         role="toolbar" 
         aria-label="Text formatting" 
-        className="note-toolbar relative z-20 flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-white p-1.5 shadow-2xs"
+        className="note-toolbar relative z-20 flex flex-nowrap md:flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-white p-1.5 shadow-2xs overflow-x-auto no-scrollbar max-w-full select-none touch-pan-x [&>*]:shrink-0"
       >
         {/* Undo / Redo Group */}
         <div className="flex items-center gap-0.5">

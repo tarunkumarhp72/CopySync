@@ -214,16 +214,10 @@ export function GoogleSignInButton() {
       )}
 
       {error && (
-        <div className="mt-2 space-y-2 w-full text-center">
+        <div className="mt-2.5 w-full text-center">
           <p role="alert" className="text-xs text-red-600">
             {error}
           </p>
-          <button
-            className="motion-button w-full rounded-lg border border-border bg-white px-4 py-2.5 text-xs font-medium"
-            onClick={fallback}
-          >
-            Use Google redirect sign-in
-          </button>
         </div>
       )}
     </div>

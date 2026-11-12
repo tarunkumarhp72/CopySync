@@ -42,6 +42,7 @@ type Props = {
   content: string;
   onChange: (html: string) => void;
   onError: (message: string) => void;
+  isSidebarOpen?: boolean;
 };
 
 const apiUrl = process.env.NEXT_PROD_API_URL;
@@ -131,7 +132,7 @@ const FONT_FAMILIES = [
   { label: "Rounded (Modern)", value: "system-ui, -apple-system, 'SF Pro Rounded', 'Nunito', sans-serif", shortName: "Rounded" },
 ];
 
-export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
+export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOpen }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   
   // Popover visibility states
@@ -253,6 +254,16 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
       setCharCount(instance.getText().length);
     },
   });
+
+  // When sidebar opens on mobile, close all popovers and blur editor to avoid floating overlaps
+  useEffect(() => {
+    if (isSidebarOpen) {
+      closeAllPopovers();
+      if (editor && !editor.isDestroyed) {
+        editor.commands.blur();
+      }
+    }
+  }, [isSidebarOpen, editor]);
 
   const uploadImage = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -424,7 +435,7 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
         editor={editor}
         tippyOptions={{ duration: 150, zIndex: 30, maxWidth: "none" }}
         className={`flex max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-2xl border border-white/80 bg-[#FAF9F6]/85 p-2 text-stone-800 shadow-[0_20px_50px_rgba(30,28,24,0.14),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-2xl backdrop-saturate-150 ring-1 ring-black/5 transition-opacity duration-150 ${
-          isAnyTopPopoverOpen ? "opacity-0 pointer-events-none !hidden" : "opacity-100"
+          isAnyTopPopoverOpen || isSidebarOpen ? "opacity-0 pointer-events-none !hidden" : "opacity-100"
         }`}
       >
         {/* Row 1: Quick Actions: Cut / Copy / Paste / Undo / Redo */}
@@ -942,7 +953,7 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 6 }}
-                  className="absolute left-0 top-full mt-2 z-50 flex w-56 flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
+                  className="fixed inset-x-4 top-28 sm:absolute sm:inset-x-auto sm:left-0 sm:top-full mt-2 z-[70] sm:w-56 max-w-[calc(100vw-2rem)] flex flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
                 >
                   <div className="w-full text-[11px] font-semibold text-muted pb-1 border-b border-border/60">
                     Text Font Color
@@ -1008,7 +1019,7 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 6 }}
-                  className="absolute left-0 top-full mt-2 z-50 flex w-56 flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
+                  className="fixed inset-x-4 top-28 sm:absolute sm:inset-x-auto sm:left-0 sm:top-full mt-2 z-[70] sm:w-56 max-w-[calc(100vw-2rem)] flex flex-wrap gap-2 rounded-xl border border-border bg-card p-3 shadow-xl"
                 >
                   <div className="w-full text-[11px] font-semibold text-muted pb-1 border-b border-border/60">
                     Highlight Color
@@ -1065,14 +1076,14 @@ export function RichTextEditor({ noteId, content, onChange, onError }: Props) {
             <span className="text-[11px] font-medium">More</span>
           </button>
 
-          {/* Clean Vertical Dropdown List (One by one, not square grid, never goes outside window) */}
+          {/* Clean Vertical Dropdown List (Centered on mobile, never goes outside window) */}
           <AnimatePresence>
             {showMobileMore && (
               <motion.div
                 initial={{ opacity: 0, y: 6, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                className="absolute right-0 top-full mt-2 z-50 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-white p-2 shadow-2xl max-h-[75vh] overflow-y-auto space-y-0.5"
+                className="fixed inset-x-3 top-28 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full mt-2 z-[70] sm:w-64 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-white p-2.5 shadow-2xl max-h-[70vh] overflow-y-auto space-y-0.5"
               >
                 {/* Section: Headings */}
                 <div className="px-2 pt-1 pb-1 text-[10px] font-bold text-muted uppercase tracking-wider">

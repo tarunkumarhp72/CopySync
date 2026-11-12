@@ -37,3 +37,11 @@ class NoteListItem(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+class NoteVersion(BaseModel):
+    id: uuid.UUID
+    version: int
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+

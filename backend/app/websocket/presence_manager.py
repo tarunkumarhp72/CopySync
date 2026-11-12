@@ -118,3 +118,4 @@ class DevicePresenceManager:
 
 
 presence_manager = DevicePresenceManager()
+

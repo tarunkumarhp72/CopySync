@@ -110,13 +110,6 @@ function ConnectContent() {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
-        ws.onclose = (ev) => {
-          if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
-            setStatus("unavailable");
-            setError(ev.reason || "Maximum 3 active devices reached for this guest session.");
-          }
-        };
-
         ws.onopen = () => {
           if (isMounted) setStatus("connected");
         };
@@ -150,8 +143,12 @@ function ConnectContent() {
           }
         };
 
-        ws.onclose = () => {
-          if (isMounted) setStatus("unavailable");
+        ws.onclose = (ev) => {
+          if (!isMounted) return;
+          setStatus("unavailable");
+          if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
+            setError(ev.reason || "Maximum 3 active devices reached for this guest session.");
+          }
         };
 
         pingInterval = setInterval(() => {

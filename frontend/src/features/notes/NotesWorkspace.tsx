@@ -359,7 +359,69 @@ export function NotesWorkspace({
     }
   };
 
-  const executeSave = async (noteId: string, title: string, content: string, version: number) => {
+  // Cross-device sync: poll current note version every 2.5s for seamless multi-device updates
+  useEffect(() => {
+    if (!active?.id) return;
+
+    let isDisposed = false;
+    const interval = setInterval(async () => {
+      // Don't poll if page is hidden in background
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      // Don't poll while local user is currently typing or saving
+      if (isSavingRef.current || pendingUpdateRef.current !== null) return;
+
+      const currentActive = activeRef.current;
+      if (!currentActive?.id) return;
+
+      try {
+        const ver = await notesService.getVersion(currentActive.id);
+        if (isDisposed) return;
+
+        // If version on server is newer than local version, another device saved updates!
+        if (ver.version > currentActive.version) {
+          // Double-check local edit hasn't started in the meantime
+          if (isSavingRef.current || pendingUpdateRef.current !== null) return;
+          const fresh = await notesService.get(currentActive.id);
+          if (isDisposed) return;
+
+          setActive(fresh);
+          setNotes((items) => items.map((item) => (item.id === fresh.id ? { ...item, ...fresh } : item)));
+          setSaveState("saved");
+        }
+      } catch {
+        // network blip or auth, ignore silently
+      }
+    }, 2500);
+
+    return () => {
+      isDisposed = true;
+      clearInterval(interval);
+    };
+  }, [active?.id]);
+
+  // Periodic background list sync so new/deleted notes on other devices appear in sidebar
+  useEffect(() => {
+    let isDisposed = false;
+    const listInterval = setInterval(async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (isSavingRef.current || pendingUpdateRef.current !== null) return;
+
+      try {
+        const freshList = await notesService.list();
+        if (isDisposed) return;
+        setNotes(freshList);
+      } catch {
+        // ignore
+      }
+    }, 12000);
+
+    return () => {
+      isDisposed = true;
+      clearInterval(listInterval);
+    };
+  }, []);
+
+  const executeSave = async (noteId: string, title: string, content: string, version: number, retryCount = 0) => {
     isSavingRef.current = true;
     setSaveState("saving");
     try {
@@ -380,25 +442,27 @@ export function NotesWorkspace({
       if (pendingUpdateRef.current && pendingUpdateRef.current.id === saved.id) {
         const next = pendingUpdateRef.current;
         pendingUpdateRef.current = null;
-        await executeSave(next.id, next.title, next.content, saved.version);
+        await executeSave(next.id, next.title, next.content, saved.version, 0);
         return;
       }
 
       setSaveState("saved");
+      setError(undefined);
     } catch (cause: unknown) {
-      // If version conflict occurred, fetch latest note version and retry with user's current content
+      // If version conflict occurred, fetch latest note version and retry silently (up to 3 times)
       // @ts-expect-error status check
-      if (cause?.status === 409 || (cause instanceof Error && cause.message.toLowerCase().includes("conflict"))) {
+      const isConflict = cause?.status === 409 || (cause instanceof Error && cause.message.toLowerCase().includes("conflict"));
+      if (isConflict && retryCount < 3) {
         try {
           const fresh = await notesService.get(noteId);
           setActive((curr) => (curr && curr.id === noteId ? { ...curr, version: fresh.version } : curr));
           const latestContent = pendingUpdateRef.current?.content ?? content;
           const latestTitle = pendingUpdateRef.current?.title ?? title;
           pendingUpdateRef.current = null;
-          await executeSave(noteId, latestTitle, latestContent, fresh.version);
+          await executeSave(noteId, latestTitle, latestContent, fresh.version, retryCount + 1);
           return;
         } catch {
-          // If recovery fails, notify user
+          // If recovery fails, fall through to error state
         }
       }
       setSaveState("error");
@@ -809,10 +873,10 @@ export function NotesWorkspace({
         {/* Desktop Sidebar */}
         <div className="hidden border-r border-border md:block">{sidebar}</div>
 
-        {/* Mobile Slide-over Sidebar with z-50 to prevent any rich text toolbar overlap */}
+        {/* Mobile Slide-over Sidebar with z-[100] to prevent any rich text toolbar overlap */}
         <AnimatePresence>
           {sidebarOpen && (
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs md:hidden">
+            <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xs md:hidden">
               <div
                 className="absolute inset-0"
                 onClick={() => setSidebarOpen(false)}
@@ -823,7 +887,7 @@ export function NotesWorkspace({
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", stiffness: 320, damping: 30 }}
-                className="relative z-50 h-full w-[min(86vw,320px)] bg-[#fcfbf8] shadow-2xl overflow-y-auto"
+                className="relative z-[101] h-full w-[min(86vw,320px)] bg-[#fcfbf8] shadow-2xl overflow-y-auto"
               >
                 {sidebar}
               </motion.div>
@@ -978,6 +1042,7 @@ export function NotesWorkspace({
                 content={active.content}
                 onChange={(value) => edit("content", value)}
                 onError={setError}
+                isSidebarOpen={sidebarOpen}
               />
             </div>
           ) : (

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies.database import get_db
 from app.modules.notes import service
 from app.dependencies.owner import NoteOwner, get_note_owner
-from app.modules.notes.schemas import NoteCreate, NoteListItem, NoteRead, NoteUpdate
+from app.modules.notes.schemas import NoteCreate, NoteListItem, NoteRead, NoteUpdate, NoteVersion
 from app.core.rate_limit import enforce_rate_limit
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -26,6 +26,12 @@ async def create_user_note(data: NoteCreate, request: Request, owner: NoteOwner 
 @router.get("/{note_id}", response_model=NoteRead)
 async def read_user_note(note_id: uuid.UUID, owner: NoteOwner = Depends(get_note_owner), db: AsyncSession = Depends(get_db)) -> NoteRead:
     return await service.get_note(db, owner, note_id)
+
+
+@router.get("/{note_id}/version", response_model=NoteVersion)
+async def read_user_note_version(note_id: uuid.UUID, owner: NoteOwner = Depends(get_note_owner), db: AsyncSession = Depends(get_db)) -> NoteVersion:
+    note = await service.get_note(db, owner, note_id)
+    return NoteVersion(id=note.id, version=note.version, updated_at=note.updated_at)
 
 
 @router.patch("/{note_id}", response_model=NoteRead)

@@ -17,7 +17,6 @@ from app.modules.auth.schemas import GoogleCredential, UserRead
 from app.modules.auth.service import get_or_create_user
 from app.modules.guest_workspaces.service import claim_workspace
 from app.modules.devices.service import get_or_create_device
-from app.websocket.presence_manager import presence_manager
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,20 +38,6 @@ async def _establish_session(request: Request, db: AsyncSession, claims: dict, r
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Google account is not eligible for sign-in")
     user = await get_or_create_user(db, google_id=claims["sub"], email=claims["email"], name=claims.get("name"))
     
-    # Active parallel device limit check (Option A: Max 5 active devices for account)
-    client_device_id = (
-        request.headers.get("X-Device-Id")
-        or request.cookies.get("copysync_device_id")
-        or request.cookies.get("copysync_device")
-    )
-    if client_device_id:
-        allowed, _, msg = await presence_manager.can_connect("user", str(user.id), client_device_id)
-        if not allowed:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=msg,
-            )
-
     _, new_device_token = await get_or_create_device(db, user, request.cookies.get("copysync_device"))
     guest_workspace_token = (
         request.headers.get("X-Guest-Workspace-Token")

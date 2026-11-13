@@ -8,6 +8,7 @@ from app.modules.notes import service
 from app.dependencies.owner import NoteOwner, get_note_owner
 from app.modules.notes.schemas import NoteCreate, NoteListItem, NoteRead, NoteUpdate, NoteVersion
 from app.core.rate_limit import enforce_rate_limit
+from app.core.redis_client import cache_get_json, cache_set_json, cache_delete
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -30,19 +31,47 @@ async def read_user_note(note_id: uuid.UUID, owner: NoteOwner = Depends(get_note
 
 @router.get("/{note_id}/version", response_model=NoteVersion)
 async def read_user_note_version(note_id: uuid.UUID, owner: NoteOwner = Depends(get_note_owner), db: AsyncSession = Depends(get_db)) -> NoteVersion:
+    cache_key = f"note:ver:{note_id}"
+    cached = await cache_get_json(cache_key)
+    if cached:
+        try:
+            from datetime import datetime
+            return NoteVersion(
+                id=uuid.UUID(cached["id"]),
+                version=int(cached["version"]),
+                updated_at=datetime.fromisoformat(cached["updated_at"]),
+            )
+        except Exception:
+            pass
+
     note = await service.get_note(db, owner, note_id)
-    return NoteVersion(id=note.id, version=note.version, updated_at=note.updated_at)
+    ver = NoteVersion(id=note.id, version=note.version, updated_at=note.updated_at)
+    await cache_set_json(
+        cache_key,
+        {"id": str(ver.id), "version": ver.version, "updated_at": ver.updated_at.isoformat()},
+        ex_seconds=90,
+    )
+    return ver
 
 
 @router.patch("/{note_id}", response_model=NoteRead)
 async def update_user_note(note_id: uuid.UUID, data: NoteUpdate, request: Request, owner: NoteOwner = Depends(get_note_owner), db: AsyncSession = Depends(get_db)) -> NoteRead:
     await enforce_rate_limit(request, "note-update", 60, 60, str(owner.id))
-    return await service.update_note(db, owner, note_id, data)
+    note = await service.update_note(db, owner, note_id, data)
+    # Immediately update Redis version cache so pollers get instant update
+    await cache_set_json(
+        f"note:ver:{note.id}",
+        {"id": str(note.id), "version": note.version, "updated_at": note.updated_at.isoformat()},
+        ex_seconds=90,
+    )
+    return note
 
 
 @router.delete("/{note_id}", response_model=NoteRead)
 async def delete_user_note(note_id: uuid.UUID, owner: NoteOwner = Depends(get_note_owner), db: AsyncSession = Depends(get_db)) -> NoteRead:
-    return await service.delete_note(db, owner, note_id)
+    res = await service.delete_note(db, owner, note_id)
+    await cache_delete(f"note:ver:{note_id}")
+    return res
 
 
 @router.post("/{note_id}/restore", response_model=NoteRead)

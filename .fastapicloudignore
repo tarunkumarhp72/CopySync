@@ -1,0 +1,20 @@
+# Exclude Frontend completely from FastAPI Cloud
+frontend/
+node_modules/
+.next/
+
+# Exclude testing, MCP, and documentation assets
+.playwright-mcp/
+.agents/
+.pytest_cache/
+tests/
+backend/tests/
+prompt1
+prompt2
+DESIGN.md
+components.json
+skills-lock.json
+*.png
+*.jpg
+*.jpeg
+*.log

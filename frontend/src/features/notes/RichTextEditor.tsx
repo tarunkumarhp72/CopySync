@@ -31,7 +31,7 @@ import {
   X,
   RotateCcw,
   ChevronDown,
-  MoreHorizontal,
+  MoreVertical,
 } from "lucide-react";
 import { ResizableImage } from "./ResizableImage";
 import { FontSize, FontFamily } from "./textCustomExtensions";
@@ -1081,7 +1081,7 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
           </div>
         </div>
 
-        {/* 4. MOBILE MORE OPTIONS BUTTON ("•••") - Anchored with right-0 so it expands inside the screen */}
+        {/* 4. MOBILE MORE OPTIONS BUTTON ("⋮") */}
         <div className="relative editor-popover-container md:hidden ml-auto shrink-0">
           <button
             type="button"
@@ -1091,26 +1091,25 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
               setShowHighlightPicker(false);
               setShowTextColorPicker(false);
             }}
-            className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium transition cursor-pointer ${
+            className={`grid size-8 place-items-center rounded-md text-xs font-medium transition cursor-pointer ${
               showMobileMore
                 ? "bg-cream text-accent font-semibold shadow-xs"
                 : "text-muted hover:bg-cream/60 hover:text-foreground"
             }`}
-            title="More formatting options"
-            aria-label="More formatting options"
+            title="Formatting options"
+            aria-label="Formatting options"
           >
-            <MoreHorizontal size={16} />
-            <span className="text-[11px] font-medium">More</span>
+            <MoreVertical size={18} />
           </button>
 
-          {/* Clean Vertical Dropdown List (Centered on mobile, never goes outside window) */}
+          {/* Clean Compact Vertical Dropdown List */}
           <AnimatePresence>
             {showMobileMore && (
               <motion.div
                 initial={{ opacity: 0, y: 6, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                className="fixed inset-x-3 top-28 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full mt-2 z-[70] sm:w-64 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-white p-2.5 shadow-2xl max-h-[70vh] overflow-y-auto space-y-0.5"
+                className="fixed right-3 top-28 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full mt-2 z-[70] w-52 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-white p-2 shadow-2xl max-h-[70vh] overflow-y-auto space-y-0.5"
               >
                 {/* Section: Headings */}
                 <div className="px-2 pt-1 pb-1 text-[10px] font-bold text-muted uppercase tracking-wider">

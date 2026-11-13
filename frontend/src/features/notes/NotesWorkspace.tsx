@@ -226,6 +226,14 @@ export function NotesWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest, isInitialLoadDone, active, notes.length]);
 
+  // Auto-dismiss validation / error notification toast after 4.5 seconds
+  useEffect(() => {
+    if (error) {
+      const t = setTimeout(() => setError(undefined), 4500);
+      return () => clearTimeout(t);
+    }
+  }, [error]);
+
   // Fetch current user details for the sidebar if authenticated
   useEffect(() => {
     if (isGuest) return;
@@ -1106,17 +1114,35 @@ export function NotesWorkspace({
             </div>
           </header>
 
-          {error && (
-            <div
-              role="alert"
-              className="m-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-center justify-between"
-            >
-              <span>{error}</span>
-              <button onClick={() => setError(undefined)}>
-                <X size={14} />
-              </button>
-            </div>
-          )}
+          {/* Floating Validation / Error Toast Notification (outside document layout, never pushes notes down) */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -18, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -14, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                role="alert"
+                className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[120] flex items-start gap-3 rounded-2xl border border-red-200/90 bg-white/95 px-4 py-3 shadow-[0_16px_36px_rgba(220,38,38,0.14),0_2px_8px_rgba(0,0,0,0.06)] backdrop-blur-xl max-w-[calc(100vw-2rem)] sm:max-w-md ring-1 ring-black/5"
+              >
+                <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 border border-red-100">
+                  <AlertCircle size={16} />
+                </div>
+                <div className="flex-1 min-w-0 pr-1">
+                  <p className="text-xs font-semibold text-stone-900">Validation Notice</p>
+                  <p className="text-xs text-stone-600 leading-relaxed mt-0.5">{error}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setError(undefined)}
+                  className="rounded-lg p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer shrink-0"
+                  aria-label="Dismiss notification"
+                >
+                  <X size={14} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Active Note, Loading Skeleton, or Empty State (prevents flash of empty state on initial load) */}
           {!isInitialLoadDone || isLoadingActiveNote || (isGuest && (!active || isCreatingNote)) ? (

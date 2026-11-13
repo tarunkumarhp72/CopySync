@@ -1,16 +1,20 @@
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Literal, Optional
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+_ENV_FILES = (".env", "backend/.env", str(_BACKEND_DIR / ".env"))
 
 
 class Settings(BaseSettings):
     """Runtime configuration loaded directly from backend/.env or standard environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILES,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

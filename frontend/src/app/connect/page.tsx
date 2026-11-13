@@ -22,6 +22,7 @@ import {
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getOrCreateDeviceId } from "@/features/presence/deviceId";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 const api = process.env.NEXT_PROD_API_URL;
 
@@ -38,6 +39,8 @@ function ConnectContent() {
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "typing" | "synced">("idle");
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -166,6 +169,10 @@ function ConnectContent() {
 
         ws.onclose = (ev) => {
           if (!isMounted) return;
+          if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+            // Mobile app switched to background, do not terminate immediately
+            return;
+          }
           setStatus("unavailable");
           if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
             setError(ev.reason || "Maximum 3 active devices reached for this guest session.");
@@ -194,6 +201,130 @@ function ConnectContent() {
       }
     };
   }, [token]);
+
+  // Prompt user before leaving or closing mobile tab
+  useEffect(() => {
+    if (status !== "connected") return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [status]);
+
+  // Teardown beacon when mobile tab is closed
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (sessionId && token && api) {
+        try {
+          fetch(`${api}/guest/session/${sessionId}?token=${encodeURIComponent(token)}`, {
+            method: "DELETE",
+            keepalive: true,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          }).catch(() => {});
+        } catch {}
+      }
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [sessionId, token]);
+
+  // Mobile backgrounding protection: keep session alive when user switches apps to copy text
+  useEffect(() => {
+    if (!sessionId || !token || !api) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        // Tab brought back into foreground from background app switch
+        try {
+          const res = await fetch(`${api}/guest/session/${sessionId}?token=${encodeURIComponent(token)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === "closed" || data.status === "expired") {
+              setStatus("unavailable");
+              setError("The connection was ended by your laptop.");
+              if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+              }
+              return;
+            }
+          }
+        } catch {
+          // ignore network glitch
+        }
+
+        // If socket was dropped while sleeping in background, reconnect silently
+        if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+          const deviceId = getOrCreateDeviceId();
+          const wsUrl =
+            api.replace(/^http/, "ws") +
+            `/ws/guest/${sessionId}?token=${encodeURIComponent(token)}&role=receiver&device_id=${encodeURIComponent(deviceId)}`;
+          const ws = new WebSocket(wsUrl);
+          wsRef.current = ws;
+
+          ws.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (msg.type === "session.closed" || msg.type === "session.sender_left") {
+                setStatus("unavailable");
+                setError("The connection was ended by your laptop.");
+                if (wsRef.current) {
+                  wsRef.current.close();
+                  wsRef.current = null;
+                }
+                return;
+              }
+              if (
+                msg.type === "workspace.ready" ||
+                (msg.type === "session.connected" && msg.role === "sender") ||
+                (msg.type === "sender.status" && msg.online)
+              ) {
+                setStatus("connected");
+                return;
+              }
+              if (msg.type === "clipboard.updated" && typeof msg.content === "string") {
+                if (!isTypingRef.current) {
+                  setContent(msg.content);
+                  setSyncStatus("synced");
+                }
+              } else if (msg.type === "clipboard.cleared") {
+                if (!isTypingRef.current) {
+                  setContent("");
+                  setSyncStatus("idle");
+                }
+              }
+            } catch {}
+          };
+
+          ws.onclose = (ev) => {
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+              return;
+            }
+            if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
+              setStatus("unavailable");
+              setError(ev.reason || "Maximum 3 active devices reached for this guest session.");
+            }
+          };
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [sessionId, token]);
 
   // Handle typing with a 1.8-2.0 second debounce so mobile typing is 100% smooth and never scrambled
   const handleContentChange = (newText: string) => {
@@ -327,16 +458,18 @@ function ConnectContent() {
     }, 10);
   };
 
-  const handleDisconnect = async () => {
+  const confirmAndDisconnect = async () => {
+    setIsDisconnecting(true);
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "session.closed" }));
       }
     } catch {}
 
-    if (sessionId && token) {
-      await fetch(`${api}/guest/session/${sessionId}`, {
+    if (sessionId && token && api) {
+      await fetch(`${api}/guest/session/${sessionId}?token=${encodeURIComponent(token)}`, {
         method: "DELETE",
+        keepalive: true,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       }).catch(() => {});
@@ -348,6 +481,8 @@ function ConnectContent() {
       } catch {}
       wsRef.current = null;
     }
+    setShowDisconnectConfirm(false);
+    setIsDisconnecting(false);
     setStatus("unavailable");
     setError("You ended this session.");
   };
@@ -441,7 +576,7 @@ function ConnectContent() {
           )}
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => void handleDisconnect()}
+            onClick={() => setShowDisconnectConfirm(true)}
             className="flex items-center gap-1 rounded-lg border border-red-200/80 bg-red-50/70 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100/70 active:scale-95 transition cursor-pointer"
             title="Disconnect"
           >
@@ -649,6 +784,18 @@ function ConnectContent() {
           </motion.button>
         </div>
       </footer>
+
+      {/* Confirmation Modal before ending session */}
+      <ConfirmModal
+        isOpen={showDisconnectConfirm}
+        onClose={() => setShowDisconnectConfirm(false)}
+        onConfirm={confirmAndDisconnect}
+        title="End pairing session?"
+        description="Your phone will disconnect from the laptop. Are you sure you want to end this session?"
+        confirmText="Disconnect"
+        variant="danger"
+        isLoading={isDisconnecting}
+      />
     </div>
   );
 }

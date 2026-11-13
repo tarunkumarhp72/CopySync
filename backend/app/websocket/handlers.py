@@ -103,7 +103,11 @@ async def guest_websocket(
         manager.disconnect(channel, websocket)
         await presence_manager.unregister_socket("guest", session_id, device_id, websocket)
         if role == "receiver":
-            await manager.broadcast(channel, {"type": "session.receiver_left", "session_id": session_id, "timestamp": datetime.now(timezone.utc).isoformat()})
+            if not manager.role_in_use(channel, "receiver"):
+                await manager.broadcast(channel, {"type": "session.receiver_left", "session_id": session_id, "timestamp": datetime.now(timezone.utc).isoformat()})
+        elif role == "sender":
+            if not manager.role_in_use(channel, "sender"):
+                await manager.broadcast(channel, {"type": "session.sender_left", "session_id": session_id, "timestamp": datetime.now(timezone.utc).isoformat()})
 
 
 @router.websocket("/ws/presence")

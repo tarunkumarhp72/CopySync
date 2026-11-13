@@ -181,6 +181,54 @@ export function NotesWorkspace({
     return () => clearInterval(interval);
   }, [isGuest]);
 
+  // Prompt user before closing tab or browser when in guest pairing mode
+  useEffect(() => {
+    if (!isGuest || isConnectionLost) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Modern browsers display their standard confirmation dialog ("Leave site? Changes you make may not be saved.")
+      e.returnValue = "";
+      return "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isGuest, isConnectionLost]);
+
+  // When desktop tab is unloaded / closed, send keepalive teardown beacon so session ends on both sides
+  useEffect(() => {
+    if (!isGuest) return;
+
+    const handlePageHide = () => {
+      const api = process.env.NEXT_PROD_API_URL;
+      const effectiveSessionId =
+        guestSessionId ||
+        (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_id") : null);
+      const effectiveToken =
+        guestToken ||
+        (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_token") : null);
+
+      if (effectiveSessionId && effectiveToken && api) {
+        try {
+          fetch(`${api}/guest/session/${effectiveSessionId}?token=${encodeURIComponent(effectiveToken)}`, {
+            method: "DELETE",
+            keepalive: true,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: effectiveToken }),
+          }).catch(() => {});
+        } catch {}
+      }
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [isGuest, guestSessionId, guestToken]);
+
   const sessionMinutes = sessionRemaining !== null ? Math.floor(sessionRemaining / 60) : 60;
   const sessionSeconds = sessionRemaining !== null ? String(sessionRemaining % 60).padStart(2, "0") : "00";
 
@@ -375,16 +423,30 @@ export function NotesWorkspace({
       }
     }, 2000);
 
+    let receiverLeftTimer: ReturnType<typeof setTimeout> | null = null;
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        // Only end session when other party explicitly triggers session.closed (not on transient socket drops or page refresh)
+        // Explicit session termination from mobile or API
         if (data.type === "session.closed" && data.by !== "sender") {
           handleSessionEnded();
           return;
         }
-        // When mobile connects or refreshes, stream current active note content to it
+        // Mobile tab closed or removed: wait 10s grace period for mobile reload before closing session
+        if (data.type === "session.receiver_left") {
+          if (receiverLeftTimer) clearTimeout(receiverLeftTimer);
+          receiverLeftTimer = setTimeout(() => {
+            handleSessionEnded();
+          }, 10000);
+          return;
+        }
+        // When mobile connects or reloads, cancel receiver_left grace timer & sync active note
         if (data.type === "session.connected" && data.role === "receiver") {
+          if (receiverLeftTimer) {
+            clearTimeout(receiverLeftTimer);
+            receiverLeftTimer = null;
+          }
           pushContentToMobile();
           return;
         }
@@ -421,6 +483,7 @@ export function NotesWorkspace({
     };
 
     return () => {
+      if (receiverLeftTimer) clearTimeout(receiverLeftTimer);
       clearInterval(pingInterval);
       clearInterval(pollInterval);
       ws.close();

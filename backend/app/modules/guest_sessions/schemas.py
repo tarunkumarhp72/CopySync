@@ -24,7 +24,7 @@ class GuestClaim(BaseModel):
 
 
 class GuestClose(BaseModel):
-    token: str = Field(min_length=20, max_length=512)
+    token: str | None = Field(default=None, min_length=20, max_length=512)
 
 
 class GuestSessionRead(BaseModel):

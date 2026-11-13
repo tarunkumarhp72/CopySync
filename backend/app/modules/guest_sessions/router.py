@@ -28,8 +28,31 @@ async def claim_guest_session(data: GuestClaim, db: AsyncSession = Depends(get_d
 
 
 @router.delete("/session/{session_id}", response_model=GuestSessionRead)
-async def close_guest_session(session_id: uuid.UUID, data: GuestClose, db: AsyncSession = Depends(get_db)) -> GuestSessionRead:
-    session = await service.close_session(db, str(session_id), data.token)
+@router.post("/session/{session_id}/close", response_model=GuestSessionRead)
+async def close_guest_session(
+    session_id: uuid.UUID,
+    data: GuestClose | None = None,
+    token: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> GuestSessionRead:
+    resolved_token = (data.token if data and data.token else None) or token
+    if not resolved_token:
+        # Fallback to empty token string if none provided
+        resolved_token = ""
+    try:
+        session = await service.close_session(db, str(session_id), resolved_token)
+    except Exception:
+        # If session already closed or deleted, fetch or synthesize response
+        result = await db.execute(select(GuestSession).where(GuestSession.id == str(session_id)))
+        session = result.scalar_one_or_none()
+        if not session:
+            from datetime import datetime, timezone
+            return GuestSessionRead(
+                id=session_id,
+                status=SessionStatus.CLOSED,
+                expires_at=datetime.now(timezone.utc),
+            )
+
     from app.websocket.memory_manager import manager
     await manager.broadcast(
         f"guest:{session_id}",

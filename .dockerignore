@@ -1,0 +1,20 @@
+# Exclude Frontend completely
+frontend/
+node_modules/
+.next/
+
+# Exclude docs and tests
+.playwright-mcp/
+.agents/
+.pytest_cache/
+tests/
+backend/tests/
+prompt1
+prompt2
+DESIGN.md
+components.json
+skills-lock.json
+*.png
+*.jpg
+*.jpeg
+*.log

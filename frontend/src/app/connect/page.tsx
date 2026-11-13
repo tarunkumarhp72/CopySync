@@ -18,6 +18,7 @@ import {
   Info,
   Loader2,
   Laptop,
+  Monitor,
 } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -488,34 +489,7 @@ function ConnectContent() {
   };
 
   if (status === "connecting") {
-    return (
-      <div className="min-h-screen bg-[#FDFCFB] text-foreground flex flex-col justify-center items-center p-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.2 }}
-          className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center"
-        >
-          <div className="relative mb-5">
-            <div className="grid size-16 place-items-center rounded-2xl bg-cream text-accent shadow-2xs">
-              <Laptop size={32} />
-            </div>
-            <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-white shadow-xs">
-              <Loader2 size={12} className="animate-spin" />
-            </span>
-          </div>
-          <h2 className="text-lg font-bold text-foreground">Connecting to Laptop...</h2>
-          <p className="mt-1.5 text-xs text-muted leading-relaxed max-w-xs">
-            Connecting directly to your laptop notes workspace. Text you copy on mobile will stream live.
-          </p>
-
-          <div className="mt-6 w-full rounded-2xl border border-accent/20 bg-accent/5 p-3.5 text-xs text-accent font-medium flex items-center justify-center gap-2">
-            <Loader2 size={13} className="animate-spin text-accent shrink-0" />
-            <span>Waiting for laptop notes page to open...</span>
-          </div>
-        </motion.div>
-      </div>
-    );
+    return <ConnectingScreen />;
   }
 
   if (status === "unavailable") {
@@ -800,28 +774,79 @@ function ConnectContent() {
   );
 }
 
+function ConnectingScreen({ subtext }: { subtext?: string }) {
+  const [deviceIndex, setDeviceIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDeviceIndex((prev) => (prev + 1) % 2);
+    }, 2400);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentDevice = deviceIndex === 0 ? "Laptop" : "Desktop";
+  const DeviceIcon = deviceIndex === 0 ? Laptop : Monitor;
+
+  return (
+    <div className="min-h-screen bg-[#FDFCFB] text-foreground flex flex-col justify-center items-center p-6 text-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.25 }}
+        className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center"
+      >
+        <div className="relative mb-5">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentDevice}
+              initial={{ opacity: 0, scale: 0.85, rotate: -6 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.85, rotate: 6 }}
+              transition={{ duration: 0.28 }}
+              className="grid size-16 place-items-center rounded-2xl bg-cream text-accent shadow-2xs"
+            >
+              <DeviceIcon size={32} />
+            </motion.div>
+          </AnimatePresence>
+          <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-white shadow-xs">
+            <Loader2 size={12} className="animate-spin" />
+          </span>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 text-lg font-bold text-foreground">
+          <span>Connecting to</span>
+          <span className="relative inline-flex overflow-hidden py-0.5">
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={currentDevice}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="text-accent underline decoration-accent/35 decoration-wavy underline-offset-4"
+              >
+                {currentDevice}...
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        </div>
+
+        <p className="mt-1.5 text-xs text-muted leading-relaxed max-w-xs">
+          {subtext || `Connecting directly to your ${currentDevice.toLowerCase()} notes workspace. Text you copy on mobile will stream live.`}
+        </p>
+
+        <div className="mt-6 w-full rounded-2xl border border-accent/20 bg-accent/5 p-3.5 text-xs text-accent font-medium flex items-center justify-center gap-2">
+          <Loader2 size={13} className="animate-spin text-accent shrink-0" />
+          <span>Waiting for {currentDevice.toLowerCase()} notes page to open...</span>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function ConnectPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#FDFCFB] flex flex-col justify-center items-center p-6 text-center">
-          <div className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center">
-            <div className="relative mb-5">
-              <div className="grid size-16 place-items-center rounded-2xl bg-cream text-accent shadow-2xs">
-                <Laptop size={32} />
-              </div>
-              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-white shadow-xs">
-                <Loader2 size={12} className="animate-spin" />
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-foreground">Connecting to Laptop...</h2>
-            <p className="mt-1.5 text-xs text-muted leading-relaxed max-w-xs">
-              Opening secure pairing channel with your laptop workspace...
-            </p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<ConnectingScreen subtext="Opening secure pairing channel with your workspace..." />}>
       <ConnectContent />
     </Suspense>
   );

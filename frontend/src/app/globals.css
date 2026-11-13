@@ -50,6 +50,12 @@ body {
 .note-image__resize--top-right { top: -7px; right: -7px; cursor: nesw-resize; }
 .note-image__resize--bottom-left { bottom: -7px; left: -7px; cursor: nesw-resize; }
 .note-image__resize--bottom-right { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.note-image--free { touch-action: none; will-change: transform; }
+.note-image.is-dragging { cursor: grabbing !important; user-select: none; }
+.note-image.is-dragging img { cursor: grabbing !important; opacity: 0.92; box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22); }
+.note-image__btn--move { cursor: grab !important; }
+.note-image__btn--move:active { cursor: grabbing !important; }
+.note-image__toolbar button.is-active { background: #f2eee4; color: #506230; font-weight: 600; }
 .motion-button { transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, color 150ms ease; }
 .motion-button:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgb(41 40 36 / .1); }
 .motion-button:active { transform: translateY(0) scale(.96); box-shadow: none; }

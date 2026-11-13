@@ -32,6 +32,8 @@ import {
   RotateCcw,
   ChevronDown,
   MoreVertical,
+  UploadCloud,
+  Loader2,
 } from "lucide-react";
 import { ResizableImage } from "./ResizableImage";
 import { FontSize, FontFamily } from "./textCustomExtensions";
@@ -149,6 +151,25 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
   const [hasCopied, setHasCopied] = useState(false);
   const [charCount, setCharCount] = useState(0);
 
+  // Image Upload Progress & Drag-and-Drop States
+  const [uploadState, setUploadState] = useState<{
+    isUploading: boolean;
+    fileName: string;
+    progress: number;
+    previewUrl: string;
+  } | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const activeXhrRef = useRef<XMLHttpRequest | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (activeXhrRef.current) {
+        activeXhrRef.current.abort();
+        activeXhrRef.current = null;
+      }
+    };
+  }, []);
+
   const closeAllPopovers = () => {
     setShowHighlightPicker(false);
     setShowTextColorPicker(false);
@@ -212,6 +233,26 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
         }
         return false;
       },
+      handleDrop: (view, event, slice, moved) => {
+        if (!moved && event.dataTransfer?.files?.length) {
+          const image = Array.from(event.dataTransfer.files).find((file) =>
+            file.type.startsWith("image/")
+          );
+          if (image) {
+            event.preventDefault();
+            const coordinates = view.posAtCoords({
+              left: event.clientX,
+              top: event.clientY,
+            });
+            if (coordinates && editor) {
+              editor.commands.setTextSelection(coordinates.pos);
+            }
+            uploadImage(image);
+            return true;
+          }
+        }
+        return false;
+      },
       handlePaste: (_, event) => {
         // Image paste check
         const image = Array.from(event.clipboardData?.files ?? []).find((file) =>
@@ -219,7 +260,7 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
         );
         if (image) {
           event.preventDefault();
-          void uploadImage(image);
+          uploadImage(image);
           return true;
         }
 
@@ -292,32 +333,75 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
     }
   }, [content, editor]);
 
-  const uploadImage = async (file: File) => {
+  const uploadImage = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      onError("Please choose an image file.");
+      onError("Please choose an image file (PNG, JPG, WebP, GIF, SVG).");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       onError("Images must be 5 MB or smaller.");
       return;
     }
+
+    const previewUrl = URL.createObjectURL(file);
+    setUploadState({
+      isUploading: true,
+      fileName: file.name,
+      progress: 0,
+      previewUrl,
+    });
+
     const form = new FormData();
     form.append("image", file);
-    try {
-      const response = await fetch(
-        `${apiUrl}/uploads/images?note_id=${encodeURIComponent(noteId)}`,
-        { method: "POST", credentials: "include", body: form }
-      );
-      if (!response.ok) {
-        throw new Error(
-          (await response.json().catch(() => null))?.detail ?? "Image upload failed."
-        );
+
+    const xhr = new XMLHttpRequest();
+    activeXhrRef.current = xhr;
+    xhr.open("POST", `${apiUrl}/uploads/images?note_id=${encodeURIComponent(noteId)}`);
+    xhr.withCredentials = true;
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setUploadState((prev) => (prev ? { ...prev, progress: Math.min(99, percent) } : null));
       }
-      const { url } = (await response.json()) as { url: string };
-      editor?.chain().focus().setImage({ src: url, alt: file.name }).run();
-    } catch (cause) {
-      onError(cause instanceof Error ? cause.message : "Image upload failed.");
-    }
+    };
+
+    xhr.onload = () => {
+      activeXhrRef.current = null;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          setUploadState((prev) => (prev ? { ...prev, progress: 100 } : null));
+          setTimeout(() => {
+            setUploadState(null);
+            URL.revokeObjectURL(previewUrl);
+            editor?.chain().focus().setImage({ src: res.url, alt: file.name }).run();
+          }, 300);
+        } catch {
+          setUploadState(null);
+          URL.revokeObjectURL(previewUrl);
+          onError("Failed to process uploaded image.");
+        }
+      } else {
+        setUploadState(null);
+        URL.revokeObjectURL(previewUrl);
+        let detail = "Image upload failed.";
+        try {
+          const parsed = JSON.parse(xhr.responseText);
+          if (parsed?.detail) detail = parsed.detail;
+        } catch {}
+        onError(detail);
+      }
+    };
+
+    xhr.onerror = () => {
+      activeXhrRef.current = null;
+      setUploadState(null);
+      URL.revokeObjectURL(previewUrl);
+      onError("Network error during image upload.");
+    };
+
+    xhr.send(form);
   };
 
   const handleCut = async () => {
@@ -452,6 +536,30 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
     showFontFamilyPicker ||
     showTextColorPicker ||
     showHighlightPicker;
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer?.types?.includes("Files")) {
+      e.preventDefault();
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleContainerDrop = (e: React.DragEvent) => {
+    setIsDragOver(false);
+    const image = Array.from(e.dataTransfer?.files ?? []).find((file) =>
+      file.type.startsWith("image/")
+    );
+    if (image) {
+      e.preventDefault();
+      uploadImage(image);
+    }
+  };
 
   return (
     <div className="relative mt-4 flex min-h-0 flex-1 flex-col">
@@ -1484,9 +1592,80 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
       {/* Editor Content Area */}
       <div 
         onClick={() => closeAllPopovers()} 
-        className="relative mt-2 flex min-h-0 flex-1 flex-col overflow-auto rounded-xl border border-border/80 bg-white p-4 sm:p-6 shadow-2xs focus-within:border-accent/40"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleContainerDrop}
+        className={`relative mt-2 flex min-h-0 flex-1 flex-col overflow-auto rounded-xl border bg-white p-4 sm:p-6 shadow-2xs transition-colors focus-within:border-accent/40 ${
+          isDragOver ? "border-accent ring-2 ring-accent/30 bg-accent/[0.02]" : "border-border/80"
+        }`}
       >
         <EditorContent editor={editor} className="min-h-full" />
+
+        {/* Drag & Drop Visual Dropzone Overlay */}
+        <AnimatePresence>
+          {isDragOver && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+              className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center rounded-xl bg-accent/10 backdrop-blur-[2px] border-2 border-dashed border-accent"
+            >
+              <div className="flex flex-col items-center gap-2 rounded-2xl bg-white/95 px-6 py-4 shadow-lg border border-accent/20">
+                <UploadCloud size={34} className="text-accent animate-bounce" />
+                <span className="text-sm font-semibold text-foreground">Drop image here to add to note</span>
+                <span className="text-xs text-muted">Supports PNG, JPG, GIF, WebP, SVG (up to 5MB)</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Uploading Progress Floating Card */}
+        <AnimatePresence>
+          {uploadState && (
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="absolute bottom-4 right-4 z-40 max-w-sm w-full rounded-2xl border border-border/80 bg-white/95 backdrop-blur-md p-3.5 shadow-xl"
+            >
+              <div className="flex items-center gap-3">
+                {uploadState.previewUrl && (
+                  <img
+                    src={uploadState.previewUrl}
+                    alt="Uploading preview"
+                    className="size-12 rounded-lg object-cover border border-border/80 shrink-0"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="truncate font-medium text-foreground pr-2">
+                      {uploadState.fileName}
+                    </span>
+                    <span className="shrink-0 font-mono font-semibold text-accent">
+                      {uploadState.progress}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-cream">
+                    <div
+                      className="h-full bg-accent transition-all duration-150 ease-out rounded-full"
+                      style={{ width: `${uploadState.progress}%` }}
+                    />
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
+                    <Loader2 size={11} className="animate-spin text-accent" />
+                    <span>
+                      {uploadState.progress < 100
+                        ? `Uploading image (${uploadState.progress}%)...`
+                        : "Processing & inserting into note..."}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Character Count & Section Limits Footer */}

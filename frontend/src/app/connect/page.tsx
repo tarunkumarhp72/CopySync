@@ -839,7 +839,7 @@ function ConnectContent() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -4 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 top-full mt-1.5 w-64 rounded-2xl border border-border/80 bg-white p-3 shadow-2xl z-50 text-foreground space-y-2.5 max-h-[75vh] overflow-y-auto no-scrollbar"
+                  className="absolute right-0 top-full mt-1.5 w-64 rounded-2xl border border-border/70 bg-white/85 p-3 shadow-2xl backdrop-blur-xl z-50 text-foreground space-y-2.5 max-h-[75vh] overflow-y-auto no-scrollbar ring-1 ring-black/5"
                 >
                   {/* Dropdown Header */}
                   <div className="flex items-center justify-between pb-1 border-b border-border/40">
@@ -864,7 +864,7 @@ function ConnectContent() {
                           setShowMoreMenu(false);
                         }}
                         className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
-                          !editor?.isActive("heading") ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                          !editor?.isActive("heading") ? "border-accent bg-accent/15 font-bold text-accent shadow-2xs" : "border-border/70 bg-white/60 hover:bg-white/90 text-foreground"
                         }`}
                       >
                         Body
@@ -876,7 +876,7 @@ function ConnectContent() {
                           setShowMoreMenu(false);
                         }}
                         className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
-                          editor?.isActive("heading", { level: 1 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                          editor?.isActive("heading", { level: 1 }) ? "border-accent bg-accent/15 font-bold text-accent shadow-2xs" : "border-border/70 bg-white/60 hover:bg-white/90 text-foreground"
                         }`}
                       >
                         Title (H1)
@@ -888,7 +888,7 @@ function ConnectContent() {
                           setShowMoreMenu(false);
                         }}
                         className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
-                          editor?.isActive("heading", { level: 2 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                          editor?.isActive("heading", { level: 2 }) ? "border-accent bg-accent/15 font-bold text-accent shadow-2xs" : "border-border/70 bg-white/60 hover:bg-white/90 text-foreground"
                         }`}
                       >
                         Heading (H2)
@@ -900,7 +900,7 @@ function ConnectContent() {
                           setShowMoreMenu(false);
                         }}
                         className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
-                          editor?.isActive("heading", { level: 3 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                          editor?.isActive("heading", { level: 3 }) ? "border-accent bg-accent/15 font-bold text-accent shadow-2xs" : "border-border/70 bg-white/60 hover:bg-white/90 text-foreground"
                         }`}
                       >
                         Subhead (H3)
@@ -931,7 +931,7 @@ function ConnectContent() {
                           safeRun((chain) => chain.unsetColor().run());
                           setShowMoreMenu(false);
                         }}
-                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-muted hover:text-foreground cursor-pointer"
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border/80 bg-white/70 hover:bg-white text-muted hover:text-foreground cursor-pointer"
                       >
                         Reset
                       </button>
@@ -961,7 +961,7 @@ function ConnectContent() {
                           safeRun((chain) => chain.unsetHighlight().run());
                           setShowMoreMenu(false);
                         }}
-                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-muted hover:text-foreground cursor-pointer"
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border/80 bg-white/70 hover:bg-white text-muted hover:text-foreground cursor-pointer"
                       >
                         Clear
                       </button>
@@ -980,7 +980,7 @@ function ConnectContent() {
                             safeRun((chain) => chain.setFontFamily(f.value).run());
                             setShowMoreMenu(false);
                           }}
-                          className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                          className="px-2 py-0.5 text-[11px] rounded-md border border-border/70 bg-white/60 hover:bg-white/90 text-foreground cursor-pointer"
                         >
                           {f.shortName}
                         </button>
@@ -1000,7 +1000,7 @@ function ConnectContent() {
                             safeRun((chain) => chain.setFontSize(s.label).run());
                             setShowMoreMenu(false);
                           }}
-                          className="px-1.5 py-0.5 text-[10px] rounded border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                          className="px-1.5 py-0.5 text-[10px] rounded border border-border/70 bg-white/60 hover:bg-white/90 text-foreground cursor-pointer"
                         >
                           {s.label}
                         </button>
@@ -1011,7 +1011,7 @@ function ConnectContent() {
                           safeRun((chain) => chain.toggleStrike().run());
                           setShowMoreMenu(false);
                         }}
-                        className="px-1.5 py-0.5 text-[10px] rounded border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border/70 bg-white/60 hover:bg-white/90 text-foreground cursor-pointer"
                       >
                         Strike
                       </button>

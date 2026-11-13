@@ -33,21 +33,7 @@ import { motion, AnimatePresence } from "motion/react";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-function htmlToPlainText(html: string): string {
-  if (!html) return "";
-  if (typeof document === "undefined") {
-    return html.replace(/<[^>]+>/g, "");
-  }
-  const temp = document.createElement("div");
-  temp.innerHTML = html;
-  const paragraphs = temp.querySelectorAll("p, div, li, h1, h2, h3, blockquote");
-  if (paragraphs.length > 0) {
-    return Array.from(paragraphs)
-      .map((p) => (p as HTMLElement).innerText || p.textContent || "")
-      .join("\n");
-  }
-  return temp.innerText || temp.textContent || "";
-}
+
 
 interface NotesWorkspaceProps {
   isGuestMode?: boolean;
@@ -332,10 +318,7 @@ export function NotesWorkspace({
     const pushContentToMobile = () => {
       const current = activeRef.current;
       if (current?.content && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const plain = htmlToPlainText(current.content);
-        if (plain) {
-          wsRef.current.send(JSON.stringify({ type: "clipboard.updated", content: plain }));
-        }
+        wsRef.current.send(JSON.stringify({ type: "clipboard.updated", content: current.content }));
       }
     };
 
@@ -646,8 +629,7 @@ export function NotesWorkspace({
       if (wsBroadcastTimerRef.current) clearTimeout(wsBroadcastTimerRef.current);
       wsBroadcastTimerRef.current = setTimeout(() => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          const plainText = htmlToPlainText(htmlContent);
-          wsRef.current.send(JSON.stringify({ type: "clipboard.updated", content: plainText }));
+          wsRef.current.send(JSON.stringify({ type: "clipboard.updated", content: htmlContent }));
         }
       }, 250);
     }

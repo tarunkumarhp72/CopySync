@@ -43,6 +43,7 @@ type Props = {
   onChange: (html: string) => void;
   onError: (message: string) => void;
   isSidebarOpen?: boolean;
+  onRegisterSetContent?: (setter: (html: string) => void) => void;
 };
 
 const apiUrl = process.env.NEXT_PROD_API_URL;
@@ -132,7 +133,7 @@ const FONT_FAMILIES = [
   { label: "Rounded (Modern)", value: "system-ui, -apple-system, 'SF Pro Rounded', 'Nunito', sans-serif", shortName: "Rounded" },
 ];
 
-export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOpen }: Props) {
+export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOpen, onRegisterSetContent }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   
   // Popover visibility states
@@ -264,6 +265,32 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
       }
     }
   }, [isSidebarOpen, editor]);
+
+  // Register external content setter (for live WebSocket mobile clipboard paste & version polling)
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && onRegisterSetContent) {
+      onRegisterSetContent((newHtml: string) => {
+        if (!editor.isDestroyed) {
+          editor.commands.setContent(newHtml, false);
+          setCharCount(editor.getText().length);
+        }
+      });
+      return () => {
+        onRegisterSetContent(() => {});
+      };
+    }
+  }, [editor, onRegisterSetContent]);
+
+  // Sync content when content prop changes from external source (and editor is not actively focused/typing)
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      const currentHTML = editor.getHTML();
+      if (content !== currentHTML && !editor.isFocused) {
+        editor.commands.setContent(content, false);
+        setCharCount(editor.getText().length);
+      }
+    }
+  }, [content, editor]);
 
   const uploadImage = async (file: File) => {
     if (!file.type.startsWith("image/")) {

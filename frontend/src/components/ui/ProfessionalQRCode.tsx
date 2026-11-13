@@ -204,7 +204,7 @@ export function ProfessionalQRCode({
         ) : (
           <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
             <span className="size-1.5 rounded-full bg-amber-600 animate-pulse" />
-            <span>Code expired for security</span>
+            <span>Code expired</span>
           </div>
         )}
       </div>

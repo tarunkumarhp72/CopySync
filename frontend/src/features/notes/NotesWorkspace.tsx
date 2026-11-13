@@ -52,7 +52,15 @@ export function NotesWorkspace({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
+  const [isGuest, setIsGuest] = useState(() => {
+    if (isGuestMode !== undefined) return isGuestMode;
+    if (typeof window !== "undefined") {
+      const hasUserToken = Boolean(localStorage.getItem("copysync_token"));
+      const hasGuestToken = Boolean(localStorage.getItem("copysync_guest_token"));
+      return !hasUserToken && hasGuestToken;
+    }
+    return false;
+  });
   const presence = usePresence(isGuest);
   const [guestLimitReached, setGuestLimitReached] = useState(false);
   const [guestLimitMessage, setGuestLimitMessage] = useState<string | null>(null);
@@ -112,6 +120,11 @@ export function NotesWorkspace({
   const wsRef = useRef<WebSocket | null>(null);
   const isSavingRef = useRef(false);
   const pendingUpdateRef = useRef<{ id: string; title: string; content: string } | null>(null);
+  const guestAutoCreatedRef = useRef(false);
+  // Callback ref for programmatically updating TipTap editor content from external sources
+  const editorSetContentRef = useRef<((html: string) => void) | null>(null);
+  // Counter to force TipTap to accept external content updates without triggering onChange loop
+  const externalContentVersion = useRef(0);
 
   // Check guest state from prop or local storage
   useEffect(() => {
@@ -164,6 +177,16 @@ export function NotesWorkspace({
         const first = await notesService.get(list[0].id);
         setActive(first);
         setIsLoadingActiveNote(false);
+      } else if (isGuest && !guestAutoCreatedRef.current) {
+        // Guest with no notes: auto-create one so editor opens immediately
+        guestAutoCreatedRef.current = true;
+        try {
+          const note = await notesService.create();
+          setNotes([note]);
+          setActive(note);
+        } catch {
+          // silently fail — user can still click create
+        }
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load notes.");
@@ -171,11 +194,20 @@ export function NotesWorkspace({
       setIsLoadingNotes(false);
       setIsInitialLoadDone(true);
     }
-  }, []);
+  }, [isGuest]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Guest auto-create guarantee: ensure guest always lands on an active editor, never empty state
+  useEffect(() => {
+    if (isGuest && isInitialLoadDone && !active && notes.length === 0 && !guestAutoCreatedRef.current) {
+      guestAutoCreatedRef.current = true;
+      void create();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGuest, isInitialLoadDone, active, notes.length]);
 
   // Fetch current user details for the sidebar if authenticated
   useEffect(() => {
@@ -316,6 +348,11 @@ export function NotesWorkspace({
           if (current) {
             const next = { ...current, content: richContent };
             setActive(next);
+            // Programmatically update TipTap editor content so it shows instantly without reload
+            externalContentVersion.current += 1;
+            if (editorSetContentRef.current) {
+              editorSetContentRef.current(richContent);
+            }
             persist(next);
           } else {
             // If no active note, create one and set content
@@ -385,6 +422,11 @@ export function NotesWorkspace({
           if (isDisposed) return;
 
           setActive(fresh);
+          // Programmatically update TipTap editor with fresh content from another device
+          externalContentVersion.current += 1;
+          if (editorSetContentRef.current) {
+            editorSetContentRef.current(fresh.content);
+          }
           setNotes((items) => items.map((item) => (item.id === fresh.id ? { ...item, ...fresh } : item)));
           setSaveState("saved");
         }
@@ -930,11 +972,11 @@ export function NotesWorkspace({
                       initial={{ opacity: 0, scale: 0.85 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.85 }}
-                      title="Saving changes..."
+                      title="Saving..."
                       className="flex items-center gap-1.5 rounded-full bg-cream px-2 py-1 sm:px-3 text-xs text-muted"
                     >
                       <Loader2 size={13} className="animate-spin text-accent shrink-0" />
-                      <span className="hidden sm:inline">Saving changes...</span>
+                      <span className="hidden sm:inline">Saving...</span>
                     </motion.div>
                   ) : saveState === "saved" ? (
                     <motion.div
@@ -942,11 +984,11 @@ export function NotesWorkspace({
                       initial={{ opacity: 0, scale: 0.85 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.85 }}
-                      title="All changes saved"
+                      title="Saved"
                       className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 sm:px-3 text-xs text-emerald-800"
                     >
                       <Check size={13} className="text-emerald-600 shrink-0" />
-                      <span className="hidden sm:inline">All changes saved</span>
+                      <span className="hidden sm:inline">Saved</span>
                     </motion.div>
                   ) : saveState === "error" ? (
                     <motion.div
@@ -958,12 +1000,12 @@ export function NotesWorkspace({
                       className="flex items-center gap-1.5 rounded-full bg-red-50 px-2 py-1 sm:px-3 text-xs text-red-700"
                     >
                       <AlertCircle size={13} className="text-red-600 shrink-0" />
-                      <span className="hidden sm:inline">Save error</span>
+                      <span className="hidden sm:inline">Error</span>
                     </motion.div>
                   ) : (
-                    <div title="All changes saved" className="flex items-center gap-1.5 rounded-full bg-cream/50 px-2 py-1 sm:px-3 text-xs text-muted">
+                    <div title="Saved" className="flex items-center gap-1.5 rounded-full bg-cream/50 px-2 py-1 sm:px-3 text-xs text-muted">
                       <Check size={13} className="shrink-0" />
-                      <span className="hidden sm:inline">All changes saved</span>
+                      <span className="hidden sm:inline">Saved</span>
                     </div>
                   )}
                 </AnimatePresence>
@@ -1024,7 +1066,7 @@ export function NotesWorkspace({
           )}
 
           {/* Active Note, Loading Skeleton, or Empty State (prevents flash of empty state on initial load) */}
-          {!isInitialLoadDone || isLoadingActiveNote ? (
+          {!isInitialLoadDone || isLoadingActiveNote || (isGuest && (!active || isCreatingNote)) ? (
             <NoteEditorSkeleton />
           ) : active ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-12 sm:py-8">
@@ -1043,6 +1085,9 @@ export function NotesWorkspace({
                 onChange={(value) => edit("content", value)}
                 onError={setError}
                 isSidebarOpen={sidebarOpen}
+                onRegisterSetContent={(setter) => {
+                  editorSetContentRef.current = setter;
+                }}
               />
             </div>
           ) : (

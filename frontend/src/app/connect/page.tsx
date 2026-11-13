@@ -686,9 +686,9 @@ function ConnectContent() {
         )}
       </AnimatePresence>
 
-      {/* 2. Apple Notes Format Toolbar (Smooth touch-scrollable, hidden scrollbar track, always accessible) */}
-      <div className="shrink-0 h-10 border-b border-border/60 bg-[#FAF9F7] px-2 flex items-center justify-between z-20">
-        <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar scroll-smooth py-1">
+      {/* 2. Format Toolbar with Slim Floating Vertical Dropdown */}
+      <div className="shrink-0 h-10 border-b border-border/60 bg-[#FAF9F7] px-2 flex items-center justify-between z-20 relative">
+        <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar scroll-smooth py-1 flex-1 min-w-0">
           {/* Undo & Redo (Always directly visible on mobile) */}
           <button
             type="button"
@@ -794,15 +794,28 @@ function ConnectContent() {
           >
             <Highlighter size={15} />
           </button>
+        </div>
 
-          <span className="mx-1 h-3.5 w-px bg-border/70 shrink-0" />
+        {/* Right Pinned Actions with Slim Floating Vertical Dropdown */}
+        <div className="relative shrink-0 flex items-center gap-1 ml-1.5">
+          {/* Sync Now Shortcut */}
+          {syncStatus === "typing" && (
+            <button
+              type="button"
+              onClick={handleSyncImmediately}
+              className="flex items-center gap-1 text-[11px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full hover:bg-accent/20 active:scale-95 transition cursor-pointer shrink-0"
+            >
+              <Zap size={11} />
+              <span className="hidden sm:inline">Sync</span>
+            </button>
+          )}
 
-          {/* Apple Notes Aa Format Button (Opens bottom sheet, safe and exception-free) */}
+          {/* Aa / 3-dots Dropdown Toggle */}
           <button
             type="button"
             onClick={() => setShowMoreMenu((prev) => !prev)}
             className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold active:scale-95 transition cursor-pointer shrink-0 ${
-              showMoreMenu ? "bg-accent text-white shadow-2xs" : "bg-white border border-border/70 text-foreground hover:bg-stone-50"
+              showMoreMenu ? "bg-accent text-white shadow-xs" : "bg-white border border-border/70 text-foreground hover:bg-stone-50"
             }`}
             title="Format Styles, Colors & Fonts"
             aria-label="Format Styles, Colors & Fonts"
@@ -810,214 +823,206 @@ function ConnectContent() {
             <span className="font-serif font-bold text-xs">Aa</span>
             <MoreVertical size={13} className={showMoreMenu ? "text-white" : "text-muted"} />
           </button>
+
+          {/* Slim Floating Vertical Dropdown (Zero layout shift, floats over content) */}
+          <AnimatePresence>
+            {showMoreMenu && (
+              <>
+                {/* Backdrop for outside click */}
+                <div
+                  className="fixed inset-0 z-40 bg-transparent"
+                  onClick={() => setShowMoreMenu(false)}
+                />
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 top-full mt-1.5 w-64 rounded-2xl border border-border/80 bg-white p-3 shadow-2xl z-50 text-foreground space-y-2.5 max-h-[75vh] overflow-y-auto no-scrollbar"
+                >
+                  {/* Dropdown Header */}
+                  <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                    <span className="text-[11px] font-bold text-foreground uppercase tracking-wide">Format Menu</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowMoreMenu(false)}
+                      className="text-[11px] font-semibold text-accent hover:underline px-1 cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  {/* Typography Style Pills */}
+                  <div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Typography</div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeRun((c) => c.setParagraph().run());
+                          setShowMoreMenu(false);
+                        }}
+                        className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
+                          !editor?.isActive("heading") ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                        }`}
+                      >
+                        Body
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeRun((c) => c.toggleHeading({ level: 1 }).run());
+                          setShowMoreMenu(false);
+                        }}
+                        className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
+                          editor?.isActive("heading", { level: 1 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                        }`}
+                      >
+                        Title (H1)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeRun((c) => c.toggleHeading({ level: 2 }).run());
+                          setShowMoreMenu(false);
+                        }}
+                        className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
+                          editor?.isActive("heading", { level: 2 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                        }`}
+                      >
+                        Heading (H2)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeRun((c) => c.toggleHeading({ level: 3 }).run());
+                          setShowMoreMenu(false);
+                        }}
+                        className={`px-2 py-1 text-xs rounded-lg border text-center transition cursor-pointer ${
+                          editor?.isActive("heading", { level: 3 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                        }`}
+                      >
+                        Subhead (H3)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Text Color Dots */}
+                  <div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Text Color</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {TEXT_COLORS.map((c) => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => {
+                            safeRun((chain) => chain.setColor(c.color).run());
+                            setShowMoreMenu(false);
+                          }}
+                          style={{ backgroundColor: c.color }}
+                          className="size-5 rounded-full border border-black/15 shadow-2xs hover:scale-115 active:scale-95 transition cursor-pointer"
+                          title={c.name}
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeRun((chain) => chain.unsetColor().run());
+                          setShowMoreMenu(false);
+                        }}
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-muted hover:text-foreground cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Highlighter Marker Dots */}
+                  <div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Highlight Marker</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {PASTEL_HIGHLIGHTS.map((h) => (
+                        <button
+                          key={h.name}
+                          type="button"
+                          onClick={() => {
+                            safeRun((chain) => chain.toggleHighlight({ color: h.color }).run());
+                            setShowMoreMenu(false);
+                          }}
+                          style={{ backgroundColor: h.color }}
+                          className="size-5 rounded-full border border-black/15 shadow-2xs hover:scale-115 active:scale-95 transition cursor-pointer"
+                          title={h.name}
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeRun((chain) => chain.unsetHighlight().run());
+                          setShowMoreMenu(false);
+                        }}
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border text-muted hover:text-foreground cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Font Family */}
+                  <div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Font Style</div>
+                    <div className="flex flex-wrap gap-1">
+                      {FONT_FAMILIES.map((f) => (
+                        <button
+                          key={f.shortName}
+                          type="button"
+                          onClick={() => {
+                            safeRun((chain) => chain.setFontFamily(f.value).run());
+                            setShowMoreMenu(false);
+                          }}
+                          className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                        >
+                          {f.shortName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Font Size & Strike */}
+                  <div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Font Size</div>
+                    <div className="flex flex-wrap gap-1">
+                      {FONT_SIZES.map((s) => (
+                        <button
+                          key={s.label}
+                          type="button"
+                          onClick={() => {
+                            safeRun((chain) => chain.setFontSize(s.label).run());
+                            setShowMoreMenu(false);
+                          }}
+                          className="px-1.5 py-0.5 text-[10px] rounded border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          safeRun((chain) => chain.toggleStrike().run());
+                          setShowMoreMenu(false);
+                        }}
+                        className="px-1.5 py-0.5 text-[10px] rounded border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                      >
+                        Strike
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
-
-        {/* Sync Now Shortcut */}
-        {syncStatus === "typing" && (
-          <button
-            type="button"
-            onClick={handleSyncImmediately}
-            className="flex items-center gap-1 text-[11px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full hover:bg-accent/20 active:scale-95 transition cursor-pointer shrink-0 ml-1"
-          >
-            <Zap size={11} />
-            <span className="hidden sm:inline">Sync</span>
-          </button>
-        )}
       </div>
-
-      {/* 3. Apple Notes Formatting Bottom Tray (Protected with safeRun, no client-side exceptions) */}
-      <AnimatePresence>
-        {showMoreMenu && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="shrink-0 border-b border-border/80 bg-white/98 backdrop-blur-md p-3 space-y-3 shadow-md z-30 max-h-[46vh] overflow-y-auto no-scrollbar"
-          >
-            {/* Tray Header */}
-            <div className="flex items-center justify-between pb-1 border-b border-border/40">
-              <span className="text-xs font-bold text-foreground">Formatting & Styles</span>
-              <button
-                type="button"
-                onClick={() => setShowMoreMenu(false)}
-                className="text-xs font-semibold text-accent hover:underline px-2 py-0.5 cursor-pointer"
-              >
-                Done
-              </button>
-            </div>
-
-            {/* Typography Heading Styles */}
-            <div>
-              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                Typography
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    safeRun((c) => c.setParagraph().run());
-                    setShowMoreMenu(false);
-                  }}
-                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
-                    !editor?.isActive("heading") ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
-                  }`}
-                >
-                  Body
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    safeRun((c) => c.toggleHeading({ level: 1 }).run());
-                    setShowMoreMenu(false);
-                  }}
-                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
-                    editor?.isActive("heading", { level: 1 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
-                  }`}
-                >
-                  Title (H1)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    safeRun((c) => c.toggleHeading({ level: 2 }).run());
-                    setShowMoreMenu(false);
-                  }}
-                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
-                    editor?.isActive("heading", { level: 2 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
-                  }`}
-                >
-                  Heading (H2)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    safeRun((c) => c.toggleHeading({ level: 3 }).run());
-                    setShowMoreMenu(false);
-                  }}
-                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
-                    editor?.isActive("heading", { level: 3 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
-                  }`}
-                >
-                  Subheading (H3)
-                </button>
-              </div>
-            </div>
-
-            {/* Text Colors Palette */}
-            <div>
-              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                Text Color
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {TEXT_COLORS.map((c) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => {
-                      safeRun((chain) => chain.setColor(c.color).run());
-                      setShowMoreMenu(false);
-                    }}
-                    style={{ backgroundColor: c.color }}
-                    className="size-6 rounded-full border border-black/15 shadow-2xs hover:scale-110 active:scale-95 transition cursor-pointer"
-                    title={c.name}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    safeRun((chain) => chain.unsetColor().run());
-                    setShowMoreMenu(false);
-                  }}
-                  className="px-2 py-0.5 text-[11px] rounded-md border border-border text-muted hover:text-foreground cursor-pointer"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            {/* Highlighter Markers */}
-            <div>
-              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                Highlight Marker
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {PASTEL_HIGHLIGHTS.map((h) => (
-                  <button
-                    key={h.name}
-                    type="button"
-                    onClick={() => {
-                      safeRun((chain) => chain.toggleHighlight({ color: h.color }).run());
-                      setShowMoreMenu(false);
-                    }}
-                    style={{ backgroundColor: h.color }}
-                    className="h-6 px-2 rounded-md border border-black/10 text-[10px] font-semibold text-stone-900 shadow-2xs hover:scale-105 active:scale-95 transition cursor-pointer"
-                  >
-                    {h.name.split(" ")[0]}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    safeRun((chain) => chain.unsetHighlight().run());
-                    setShowMoreMenu(false);
-                  }}
-                  className="px-2 py-0.5 text-[11px] rounded-md border border-border text-muted hover:text-foreground cursor-pointer"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            {/* Font Style & Size */}
-            <div>
-              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                Font Style & Size
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {FONT_FAMILIES.map((f) => (
-                  <button
-                    key={f.shortName}
-                    type="button"
-                    onClick={() => {
-                      safeRun((chain) => chain.setFontFamily(f.value).run());
-                      setShowMoreMenu(false);
-                    }}
-                    className="px-2.5 py-1 text-xs rounded-lg border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
-                  >
-                    {f.shortName}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {FONT_SIZES.map((s) => (
-                  <button
-                    key={s.label}
-                    type="button"
-                    onClick={() => {
-                      safeRun((chain) => chain.setFontSize(s.label).run());
-                      setShowMoreMenu(false);
-                    }}
-                    className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
-                  >
-                    {s.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    safeRun((chain) => chain.toggleStrike().run());
-                    setShowMoreMenu(false);
-                  }}
-                  className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
-                >
-                  Strikethrough
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* 4. Native Apple Notes Writing Canvas (Fills remaining height, only text scrolls) */}
       <main className="flex-1 min-h-0 w-full overflow-y-auto px-4 py-3 select-text">

@@ -355,7 +355,12 @@ function ConnectContent() {
   if (status === "connecting") {
     return (
       <div className="min-h-screen bg-[#FDFCFB] text-foreground flex flex-col justify-center items-center p-6 text-center">
-        <div className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+          className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center"
+        >
           <div className="relative mb-5">
             <div className="grid size-16 place-items-center rounded-2xl bg-cream text-accent shadow-2xs">
               <Laptop size={32} />
@@ -373,7 +378,7 @@ function ConnectContent() {
             <Loader2 size={13} className="animate-spin text-accent shrink-0" />
             <span>Waiting for laptop notes page to open...</span>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -652,10 +657,20 @@ export default function ConnectPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background grid place-items-center text-sm text-muted">
-          <div className="flex items-center gap-2">
-            <div className="size-4 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-            <span>Connecting to CopySync...</span>
+        <div className="min-h-screen bg-[#FDFCFB] flex flex-col justify-center items-center p-6 text-center">
+          <div className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center">
+            <div className="relative mb-5">
+              <div className="grid size-16 place-items-center rounded-2xl bg-cream text-accent shadow-2xs">
+                <Laptop size={32} />
+              </div>
+              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-white shadow-xs">
+                <Loader2 size={12} className="animate-spin" />
+              </span>
+            </div>
+            <h2 className="text-lg font-bold text-foreground">Connecting to Laptop...</h2>
+            <p className="mt-1.5 text-xs text-muted leading-relaxed max-w-xs">
+              Opening secure pairing channel with your laptop workspace...
+            </p>
           </div>
         </div>
       }

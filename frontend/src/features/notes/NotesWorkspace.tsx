@@ -33,6 +33,22 @@ import { motion, AnimatePresence } from "motion/react";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
+function htmlToPlainText(html: string): string {
+  if (!html) return "";
+  if (typeof document === "undefined") {
+    return html.replace(/<[^>]+>/g, "");
+  }
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+  const paragraphs = temp.querySelectorAll("p, div, li, h1, h2, h3, blockquote");
+  if (paragraphs.length > 0) {
+    return Array.from(paragraphs)
+      .map((p) => (p as HTMLElement).innerText || p.textContent || "")
+      .join("\n");
+  }
+  return temp.innerText || temp.textContent || "";
+}
+
 interface NotesWorkspaceProps {
   isGuestMode?: boolean;
   guestSessionId?: string;
@@ -125,6 +141,7 @@ export function NotesWorkspace({
   const editorSetContentRef = useRef<((html: string) => void) | null>(null);
   // Counter to force TipTap to accept external content updates without triggering onChange loop
   const externalContentVersion = useRef(0);
+  const wsBroadcastTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Check guest state from prop or local storage
   useEffect(() => {
@@ -248,10 +265,29 @@ export function NotesWorkspace({
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
+    const formatRichText = (text: string) => {
+      if (text.startsWith("<") && text.endsWith(">")) return text;
+      return text
+        .split("\n")
+        .map((line) => `<p>${line || "<br>"}</p>`)
+        .join("");
+    };
+
+    const pushContentToMobile = () => {
+      const current = activeRef.current;
+      if (current?.content && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        const plain = htmlToPlainText(current.content);
+        if (plain) {
+          wsRef.current.send(JSON.stringify({ type: "clipboard.updated", content: plain }));
+        }
+      }
+    };
+
     ws.onopen = () => {
       // Announce to pairing channel that laptop workspace is active and ready to sync
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "workspace.ready" }));
+        pushContentToMobile();
       }
     };
 
@@ -267,14 +303,6 @@ export function NotesWorkspace({
         ws.send(JSON.stringify({ type: "ping" }));
       }
     }, 25000);
-
-    const formatRichText = (text: string) => {
-      if (text.startsWith("<") && text.endsWith(">")) return text;
-      return text
-        .split("\n")
-        .map((line) => `<p>${line || "<br>"}</p>`)
-        .join("");
-    };
 
     let isTerminated = false;
 
@@ -342,11 +370,14 @@ export function NotesWorkspace({
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (
-          data.type === "session.receiver_left" ||
-          (data.type === "session.closed" && data.by !== "sender")
-        ) {
+        // Only end session when other party explicitly triggers session.closed (not on transient socket drops or page refresh)
+        if (data.type === "session.closed" && data.by !== "sender") {
           handleSessionEnded();
+          return;
+        }
+        // When mobile connects or refreshes, stream current active note content to it
+        if (data.type === "session.connected" && data.role === "receiver") {
+          pushContentToMobile();
           return;
         }
         if (data.type === "clipboard.updated" && typeof data.content === "string") {
@@ -539,12 +570,27 @@ export function NotesWorkspace({
     }, 400);
   };
 
+  const broadcastToMobile = (htmlContent: string) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (wsBroadcastTimerRef.current) clearTimeout(wsBroadcastTimerRef.current);
+      wsBroadcastTimerRef.current = setTimeout(() => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          const plainText = htmlToPlainText(htmlContent);
+          wsRef.current.send(JSON.stringify({ type: "clipboard.updated", content: plainText }));
+        }
+      }, 250);
+    }
+  };
+
   const edit = (key: "title" | "content", value: string) => {
     const note = activeRef.current;
     if (!note) return;
     const next = { ...note, [key]: value };
     setActive(next);
     persist(next);
+    if (key === "content") {
+      broadcastToMobile(value);
+    }
   };
 
   const create = async () => {

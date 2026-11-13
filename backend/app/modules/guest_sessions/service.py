@@ -20,7 +20,13 @@ async def create_session(db: AsyncSession, sender_connection_id: str | None = No
 async def claim_session(db: AsyncSession, token: str, receiver_connection_id: str) -> GuestSession:
     token_hash = hash_qr_token(token)
     async with db.begin():
-        result = await db.execute(select(GuestSession).where(GuestSession.token_hash == token_hash, GuestSession.status == SessionStatus.WAITING, GuestSession.expires_at > datetime.now(timezone.utc)).with_for_update())
+        result = await db.execute(
+            select(GuestSession).where(
+                GuestSession.token_hash == token_hash,
+                GuestSession.status.in_([SessionStatus.WAITING, SessionStatus.CONNECTED]),
+                GuestSession.expires_at > datetime.now(timezone.utc),
+            ).with_for_update()
+        )
         session = result.scalar_one_or_none()
         if not session:
             raise SessionNotAvailableError()

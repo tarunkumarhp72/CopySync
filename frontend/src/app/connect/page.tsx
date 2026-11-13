@@ -12,8 +12,6 @@ import {
   Underline as UnderlineIcon,
   Heading,
   List,
-  Code,
-  Quote,
   Trash2,
   Copy,
   Info,
@@ -29,7 +27,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getOrCreateDeviceId } from "@/features/presence/deviceId";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { EditorContent, useEditor, BubbleMenu } from "@tiptap/react";
+import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
@@ -116,7 +114,7 @@ function ConnectContent() {
     setSyncStatus("idle");
   };
 
-  // TipTap Rich Text Editor Instance for Mobile
+  // TipTap Rich Text Editor Instance for Mobile with Apple Notes styling
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -130,7 +128,7 @@ function ConnectContent() {
     content: "",
     editorProps: {
       attributes: {
-        class: "rich-editor min-h-[300px] p-4 text-[15px] outline-none leading-relaxed text-foreground bg-transparent focus:outline-none",
+        class: "rich-editor min-h-full py-2 px-1 text-[16px] outline-none leading-relaxed text-foreground bg-transparent focus:outline-none",
       },
     },
     onUpdate: ({ editor: inst }) => {
@@ -153,6 +151,17 @@ function ConnectContent() {
     },
   });
 
+  // Safe command runner to prevent any client-side exception
+  const safeRun = (action: (chain: ReturnType<NonNullable<typeof editor>["chain"]>) => void) => {
+    if (!editor || editor.isDestroyed) return;
+    try {
+      const chain = editor.chain().focus();
+      action(chain);
+    } catch (err) {
+      console.warn("Editor formatting warning:", err);
+    }
+  };
+
   // Check if permission was already granted in this browser session
   useEffect(() => {
     if (typeof navigator !== "undefined" && "permissions" in navigator) {
@@ -169,7 +178,19 @@ function ConnectContent() {
     }
   }, []);
 
+  // Connection & Token Claiming (with demo/bypass support for easy testing)
   useEffect(() => {
+    // 1. Bypass mode for testing & demo (e.g. ?token=demo or ?token=test)
+    if (token === "demo" || token === "test" || token === "bypass") {
+      setStatus("connected");
+      if (editor && !editor.isDestroyed && editor.isEmpty) {
+        editor.commands.setContent(
+          `<h2>Apple Notes Style Sync</h2><p>Welcome to <strong>CopySync</strong>! This mobile interface is inspired by native <em>Apple Notes</em> and <em>Google Keep</em>.</p><p>You can tap formatting buttons below to change <mark style="background-color: #fef08a">highlights</mark>, text <span style="color: #0284c7">colors</span>, fonts, and headings.</p>`
+        );
+      }
+      return;
+    }
+
     if (!token || !api) {
       setError("This connection link is missing a valid token.");
       setStatus("unavailable");
@@ -359,7 +380,7 @@ function ConnectContent() {
     };
   }, [sessionId, token]);
 
-  // Mobile backgrounding protection: keep session alive when user switches apps to copy text
+  // Mobile backgrounding protection
   useEffect(() => {
     if (!sessionId || !token || !api) return;
 
@@ -460,7 +481,7 @@ function ConnectContent() {
     };
   }, [sessionId, token, editor]);
 
-  // Immediate sync button (sends right away without waiting for debounce)
+  // Immediate sync button
   const handleSyncImmediately = () => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -573,7 +594,6 @@ function ConnectContent() {
             {error || "This pairing session has ended or expired."}
           </p>
 
-          {/* Reconnect Note */}
           <div className="mt-4 w-full rounded-2xl border border-border/80 bg-cream/50 p-4 text-xs text-muted text-center leading-relaxed">
             <span className="font-semibold text-foreground block mb-0.5">Want to reconnect?</span>
             To connect again, please scan the QR code displayed on your system screen.
@@ -593,16 +613,18 @@ function ConnectContent() {
   }
 
   const charCount = editor ? editor.getText().length : content.length;
+  const canUndo = Boolean(editor && editor.can().undo());
+  const canRedo = Boolean(editor && editor.can().redo());
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] text-foreground flex flex-col justify-between w-full max-w-full overflow-x-hidden">
-      {/* 1. Top Navbar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/70 bg-white/95 px-4 backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
-          <Link href="/" className="grid size-8 place-items-center rounded-xl bg-accent text-white shadow-2xs">
-            <Clipboard size={16} strokeWidth={2.2} />
+    <div className="h-[100dvh] max-h-[100dvh] bg-[#FDFCFB] text-foreground flex flex-col justify-between w-full overflow-hidden">
+      {/* 1. Apple Notes Clean Top Header */}
+      <header className="shrink-0 h-12 flex items-center justify-between border-b border-border/70 bg-white/95 px-3 backdrop-blur-md z-30">
+        <div className="flex items-center gap-2">
+          <Link href="/" className="grid size-7 place-items-center rounded-lg bg-accent text-white shadow-2xs">
+            <Clipboard size={14} strokeWidth={2.3} />
           </Link>
-          <div className="flex flex-col">
+          <div className="flex flex-col leading-tight">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold tracking-tight text-foreground">CopySync</span>
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -613,552 +635,470 @@ function ConnectContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {charCount > 0 && (
-            <span className="text-[10px] font-mono text-muted bg-cream/70 px-2 py-0.5 rounded-md">
+            <span className="text-[10px] font-mono text-muted bg-stone-100 px-2 py-0.5 rounded-md">
               {charCount} chars
             </span>
           )}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
+          <button
+            type="button"
             onClick={() => setShowDisconnectConfirm(true)}
-            className="flex items-center gap-1 rounded-lg border border-red-200/80 bg-red-50/70 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100/70 active:scale-95 transition cursor-pointer"
+            className="flex items-center gap-1 rounded-lg border border-red-200/80 bg-red-50/70 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100/70 active:scale-95 transition cursor-pointer"
             title="Disconnect"
           >
             <LogOut size={12} />
-            <span>Disconnect</span>
-          </motion.button>
+            <span className="hidden xs:inline">Disconnect</span>
+          </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="mx-auto w-full max-w-lg flex-1 flex flex-col px-3 py-3">
-        {/* Permission Request Toast / Banner */}
+      {/* Permission Request Toast / Banner */}
+      <AnimatePresence>
+        {showPermissionPrompt && !permissionGranted && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950 flex items-center justify-between gap-3 shadow-2xs z-20"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="truncate text-[11px] font-medium text-emerald-900">
+                Enable 1-tap phone clipboard pasting
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => void requestPermissionAndSync()}
+                className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-emerald-700 active:scale-95 transition"
+              >
+                Enable
+              </button>
+              <button
+                onClick={() => setShowPermissionPrompt(false)}
+                className="rounded-lg px-2 py-1 text-[11px] text-emerald-800 hover:bg-emerald-100/60 transition"
+              >
+                Skip
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. Apple Notes Format Toolbar (Smooth touch-scrollable, hidden scrollbar track, always accessible) */}
+      <div className="shrink-0 h-10 border-b border-border/60 bg-[#FAF9F7] px-2 flex items-center justify-between z-20">
+        <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar scroll-smooth py-1">
+          {/* Undo & Redo (Always directly visible on mobile) */}
+          <button
+            type="button"
+            disabled={!canUndo}
+            onClick={() => safeRun((c) => c.undo().run())}
+            className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground disabled:opacity-30 active:scale-95 transition cursor-pointer shrink-0"
+            title="Undo"
+            aria-label="Undo"
+          >
+            <Undo2 size={15} />
+          </button>
+          <button
+            type="button"
+            disabled={!canRedo}
+            onClick={() => safeRun((c) => c.redo().run())}
+            className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground disabled:opacity-30 active:scale-95 transition cursor-pointer shrink-0"
+            title="Redo"
+            aria-label="Redo"
+          >
+            <Redo2 size={15} />
+          </button>
+
+          <span className="mx-1 h-3.5 w-px bg-border/70 shrink-0" />
+
+          {/* Bold, Italic, Underline */}
+          <button
+            type="button"
+            onClick={() => safeRun((c) => c.toggleBold().run())}
+            className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer shrink-0 ${
+              editor?.isActive("bold") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
+            }`}
+            title="Bold"
+            aria-label="Bold"
+          >
+            <Bold size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => safeRun((c) => c.toggleItalic().run())}
+            className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer shrink-0 ${
+              editor?.isActive("italic") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
+            }`}
+            title="Italic"
+            aria-label="Italic"
+          >
+            <Italic size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => safeRun((c) => c.toggleUnderline().run())}
+            className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer shrink-0 ${
+              editor?.isActive("underline") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
+            }`}
+            title="Underline"
+            aria-label="Underline"
+          >
+            <UnderlineIcon size={15} />
+          </button>
+
+          <span className="mx-1 h-3.5 w-px bg-border/70 shrink-0" />
+
+          {/* Heading Toggle */}
+          <button
+            type="button"
+            onClick={() => safeRun((c) => c.toggleHeading({ level: 2 }).run())}
+            className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer shrink-0 ${
+              editor?.isActive("heading", { level: 2 }) ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
+            }`}
+            title="Heading"
+            aria-label="Heading"
+          >
+            <Heading size={15} />
+          </button>
+
+          {/* Bullet List */}
+          <button
+            type="button"
+            onClick={() => safeRun((c) => c.toggleBulletList().run())}
+            className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer shrink-0 ${
+              editor?.isActive("bulletList") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
+            }`}
+            title="List"
+            aria-label="Bullet List"
+          >
+            <List size={15} />
+          </button>
+
+          {/* Quick Highlight toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              if (editor?.isActive("highlight")) {
+                safeRun((c) => c.unsetHighlight().run());
+              } else {
+                safeRun((c) => c.toggleHighlight({ color: "#fef08a" }).run());
+              }
+            }}
+            className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer shrink-0 ${
+              editor?.isActive("highlight") ? "bg-yellow-200 text-yellow-900" : "text-muted hover:bg-white hover:text-foreground"
+            }`}
+            title="Highlight marker"
+            aria-label="Highlight marker"
+          >
+            <Highlighter size={15} />
+          </button>
+
+          <span className="mx-1 h-3.5 w-px bg-border/70 shrink-0" />
+
+          {/* Apple Notes Aa Format Button (Opens bottom sheet, safe and exception-free) */}
+          <button
+            type="button"
+            onClick={() => setShowMoreMenu((prev) => !prev)}
+            className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold active:scale-95 transition cursor-pointer shrink-0 ${
+              showMoreMenu ? "bg-accent text-white shadow-2xs" : "bg-white border border-border/70 text-foreground hover:bg-stone-50"
+            }`}
+            title="Format Styles, Colors & Fonts"
+            aria-label="Format Styles, Colors & Fonts"
+          >
+            <span className="font-serif font-bold text-xs">Aa</span>
+            <MoreVertical size={13} className={showMoreMenu ? "text-white" : "text-muted"} />
+          </button>
+        </div>
+
+        {/* Sync Now Shortcut */}
+        {syncStatus === "typing" && (
+          <button
+            type="button"
+            onClick={handleSyncImmediately}
+            className="flex items-center gap-1 text-[11px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full hover:bg-accent/20 active:scale-95 transition cursor-pointer shrink-0 ml-1"
+          >
+            <Zap size={11} />
+            <span className="hidden sm:inline">Sync</span>
+          </button>
+        )}
+      </div>
+
+      {/* 3. Apple Notes Formatting Bottom Tray (Protected with safeRun, no client-side exceptions) */}
+      <AnimatePresence>
+        {showMoreMenu && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="shrink-0 border-b border-border/80 bg-white/98 backdrop-blur-md p-3 space-y-3 shadow-md z-30 max-h-[46vh] overflow-y-auto no-scrollbar"
+          >
+            {/* Tray Header */}
+            <div className="flex items-center justify-between pb-1 border-b border-border/40">
+              <span className="text-xs font-bold text-foreground">Formatting & Styles</span>
+              <button
+                type="button"
+                onClick={() => setShowMoreMenu(false)}
+                className="text-xs font-semibold text-accent hover:underline px-2 py-0.5 cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+
+            {/* Typography Heading Styles */}
+            <div>
+              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
+                Typography
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    safeRun((c) => c.setParagraph().run());
+                    setShowMoreMenu(false);
+                  }}
+                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
+                    !editor?.isActive("heading") ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                  }`}
+                >
+                  Body
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    safeRun((c) => c.toggleHeading({ level: 1 }).run());
+                    setShowMoreMenu(false);
+                  }}
+                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
+                    editor?.isActive("heading", { level: 1 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                  }`}
+                >
+                  Title (H1)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    safeRun((c) => c.toggleHeading({ level: 2 }).run());
+                    setShowMoreMenu(false);
+                  }}
+                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
+                    editor?.isActive("heading", { level: 2 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                  }`}
+                >
+                  Heading (H2)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    safeRun((c) => c.toggleHeading({ level: 3 }).run());
+                    setShowMoreMenu(false);
+                  }}
+                  className={`px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer ${
+                    editor?.isActive("heading", { level: 3 }) ? "border-accent bg-accent/10 font-bold text-accent" : "border-border/80 bg-stone-50 text-foreground"
+                  }`}
+                >
+                  Subheading (H3)
+                </button>
+              </div>
+            </div>
+
+            {/* Text Colors Palette */}
+            <div>
+              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
+                Text Color
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {TEXT_COLORS.map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => {
+                      safeRun((chain) => chain.setColor(c.color).run());
+                      setShowMoreMenu(false);
+                    }}
+                    style={{ backgroundColor: c.color }}
+                    className="size-6 rounded-full border border-black/15 shadow-2xs hover:scale-110 active:scale-95 transition cursor-pointer"
+                    title={c.name}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    safeRun((chain) => chain.unsetColor().run());
+                    setShowMoreMenu(false);
+                  }}
+                  className="px-2 py-0.5 text-[11px] rounded-md border border-border text-muted hover:text-foreground cursor-pointer"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Highlighter Markers */}
+            <div>
+              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
+                Highlight Marker
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {PASTEL_HIGHLIGHTS.map((h) => (
+                  <button
+                    key={h.name}
+                    type="button"
+                    onClick={() => {
+                      safeRun((chain) => chain.toggleHighlight({ color: h.color }).run());
+                      setShowMoreMenu(false);
+                    }}
+                    style={{ backgroundColor: h.color }}
+                    className="h-6 px-2 rounded-md border border-black/10 text-[10px] font-semibold text-stone-900 shadow-2xs hover:scale-105 active:scale-95 transition cursor-pointer"
+                  >
+                    {h.name.split(" ")[0]}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    safeRun((chain) => chain.unsetHighlight().run());
+                    setShowMoreMenu(false);
+                  }}
+                  className="px-2 py-0.5 text-[11px] rounded-md border border-border text-muted hover:text-foreground cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {/* Font Style & Size */}
+            <div>
+              <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
+                Font Style & Size
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {FONT_FAMILIES.map((f) => (
+                  <button
+                    key={f.shortName}
+                    type="button"
+                    onClick={() => {
+                      safeRun((chain) => chain.setFontFamily(f.value).run());
+                      setShowMoreMenu(false);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded-lg border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                  >
+                    {f.shortName}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {FONT_SIZES.map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => {
+                      safeRun((chain) => chain.setFontSize(s.label).run());
+                      setShowMoreMenu(false);
+                    }}
+                    className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    safeRun((chain) => chain.toggleStrike().run());
+                    setShowMoreMenu(false);
+                  }}
+                  className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-stone-50 hover:bg-stone-100 text-foreground cursor-pointer"
+                >
+                  Strikethrough
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 4. Native Apple Notes Writing Canvas (Fills remaining height, only text scrolls) */}
+      <main className="flex-1 min-h-0 w-full overflow-y-auto px-4 py-3 select-text">
+        <EditorContent editor={editor} className="min-h-full" />
+
+        {/* Paste notice feedback */}
         <AnimatePresence>
-          {showPermissionPrompt && !permissionGranted && (
+          {pasteNotice && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-3 overflow-hidden rounded-2xl border border-emerald-200/90 bg-emerald-50/80 p-3 text-xs text-emerald-950 flex items-center justify-between gap-3 shadow-2xs"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="truncate text-[11px] font-medium text-emerald-900">
-                  Enable 1-tap phone clipboard pasting
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => void requestPermissionAndSync()}
-                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-emerald-700 active:scale-95 transition"
-                >
-                  Enable
-                </button>
-                <button
-                  onClick={() => setShowPermissionPrompt(false)}
-                  className="rounded-lg px-2 py-1 text-[11px] text-emerald-800 hover:bg-emerald-100/60 transition"
-                >
-                  Skip
-                </button>
-              </div>
+              <Info size={14} className="shrink-0 mt-0.5 text-amber-600" />
+              <span className="leading-snug">{pasteNotice}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* 2. Modern Rich Text Card */}
-        <div className="relative flex-1 flex flex-col rounded-2xl border border-border/80 bg-white shadow-xs overflow-visible">
-          {/* Quick Rich Format Bar with Undo, Redo, B, I, U, Headings, and 3-Dots */}
-          <div className="flex items-center justify-between border-b border-border/70 bg-[#FAF9F7] px-2 py-1.5 overflow-x-auto rounded-t-2xl">
-            <div className="flex items-center gap-0.5 sm:gap-1">
-              {/* Undo & Redo */}
-              <button
-                type="button"
-                disabled={!editor?.can().undo()}
-                onClick={() => editor?.chain().focus().undo().run()}
-                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground disabled:opacity-30 active:scale-95 transition cursor-pointer"
-                title="Undo"
-                aria-label="Undo"
-              >
-                <Undo2 size={14} />
-              </button>
-              <button
-                type="button"
-                disabled={!editor?.can().redo()}
-                onClick={() => editor?.chain().focus().redo().run()}
-                className="rounded-md p-1.5 text-muted hover:bg-white hover:text-foreground disabled:opacity-30 active:scale-95 transition cursor-pointer"
-                title="Redo"
-                aria-label="Redo"
-              >
-                <Redo2 size={14} />
-              </button>
-
-              <span className="mx-0.5 h-3.5 w-px bg-border/70 shrink-0" />
-
-              {/* Bold, Italic, Underline */}
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().toggleBold().run()}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor?.isActive("bold") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="Bold"
-                aria-label="Bold"
-              >
-                <Bold size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().toggleItalic().run()}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor?.isActive("italic") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="Italic"
-                aria-label="Italic"
-              >
-                <Italic size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().toggleUnderline().run()}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor?.isActive("underline") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="Underline"
-                aria-label="Underline"
-              >
-                <UnderlineIcon size={14} />
-              </button>
-
-              <span className="mx-0.5 h-3.5 w-px bg-border/70 shrink-0" />
-
-              {/* Heading, List, Code, Quote */}
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor?.isActive("heading") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="Heading"
-                aria-label="Heading"
-              >
-                <Heading size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor?.isActive("bulletList") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="Bullet List"
-                aria-label="Bullet List"
-              >
-                <List size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().toggleCode().run()}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor?.isActive("code") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="Code"
-                aria-label="Code"
-              >
-                <Code size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor?.isActive("blockquote") ? "bg-cream text-accent font-bold" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="Quote"
-                aria-label="Quote"
-              >
-                <Quote size={14} />
-              </button>
-
-              <span className="mx-0.5 h-3.5 w-px bg-border/70 shrink-0" />
-
-              {/* THREE DOTS BUTTON (MoreVertical) */}
-              <button
-                type="button"
-                onClick={() => setShowMoreMenu((prev) => !prev)}
-                className={`rounded-md p-1.5 active:scale-95 transition cursor-pointer ${
-                  showMoreMenu ? "bg-cream text-accent font-bold shadow-2xs" : "text-muted hover:bg-white hover:text-foreground"
-                }`}
-                title="More formatting options (Colors, Fonts, Sizes)"
-                aria-label="More formatting options"
-              >
-                <MoreVertical size={15} />
-              </button>
-            </div>
-
-            {/* Sync Now Shortcut */}
-            {syncStatus === "typing" && (
-              <button
-                type="button"
-                onClick={handleSyncImmediately}
-                className="flex items-center gap-1 text-[11px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full hover:bg-accent/20 active:scale-95 transition cursor-pointer shrink-0"
-              >
-                <Zap size={11} />
-                <span>Sync now</span>
-              </button>
-            )}
-          </div>
-
-          {/* THREE DOTS EXPANDABLE FORMATTING DRAWER / POPUP */}
-          <AnimatePresence>
-            {showMoreMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18 }}
-                className="border-b border-border/80 bg-white p-3 space-y-3 shadow-md z-20"
-              >
-                {/* 1. Headings Row */}
-                <div>
-                  <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                    Heading Levels
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        editor?.chain().focus().setParagraph().run();
-                        setShowMoreMenu(false);
-                      }}
-                      className="px-2.5 py-1 text-xs rounded-lg border border-border/80 bg-cream/30 hover:bg-cream text-foreground"
-                    >
-                      Normal Text
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        editor?.chain().focus().toggleHeading({ level: 1 }).run();
-                        setShowMoreMenu(false);
-                      }}
-                      className="px-2.5 py-1 text-xs font-bold rounded-lg border border-border/80 bg-cream/30 hover:bg-cream text-foreground"
-                    >
-                      H1 (Large)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        editor?.chain().focus().toggleHeading({ level: 2 }).run();
-                        setShowMoreMenu(false);
-                      }}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-border/80 bg-cream/30 hover:bg-cream text-foreground"
-                    >
-                      H2 (Medium)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        editor?.chain().focus().toggleHeading({ level: 3 }).run();
-                        setShowMoreMenu(false);
-                      }}
-                      className="px-2.5 py-1 text-xs font-medium rounded-lg border border-border/80 bg-cream/30 hover:bg-cream text-foreground"
-                    >
-                      H3 (Small)
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Text Colors Row */}
-                <div>
-                  <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                    Text Color
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {TEXT_COLORS.map((c) => (
-                      <button
-                        key={c.name}
-                        type="button"
-                        onClick={() => {
-                          editor?.chain().focus().setColor(c.color).run();
-                          setShowMoreMenu(false);
-                        }}
-                        style={{ backgroundColor: c.color }}
-                        className="size-6 rounded-full border border-black/10 shadow-xs hover:scale-110 active:scale-95 transition"
-                        title={c.name}
-                      />
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        editor?.chain().focus().unsetColor().run();
-                        setShowMoreMenu(false);
-                      }}
-                      className="px-2 py-0.5 text-[11px] rounded-md border border-border text-muted hover:text-foreground"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Highlighter Colors Row */}
-                <div>
-                  <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                    Highlight Marker
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {PASTEL_HIGHLIGHTS.map((h) => (
-                      <button
-                        key={h.name}
-                        type="button"
-                        onClick={() => {
-                          editor?.chain().focus().toggleHighlight({ color: h.color }).run();
-                          setShowMoreMenu(false);
-                        }}
-                        style={{ backgroundColor: h.color }}
-                        className="h-6 px-2 rounded-md border border-black/10 text-[10px] font-medium text-stone-900 shadow-2xs hover:scale-105 active:scale-95 transition"
-                      >
-                        {h.name.split(" ")[0]}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        editor?.chain().focus().unsetHighlight().run();
-                        setShowMoreMenu(false);
-                      }}
-                      className="px-2 py-0.5 text-[11px] rounded-md border border-border text-muted hover:text-foreground"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-
-                {/* 4. Font Sizes & Families */}
-                <div>
-                  <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">
-                    Font Size & Style
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {FONT_SIZES.map((s) => (
-                      <button
-                        key={s.label}
-                        type="button"
-                        onClick={() => {
-                          editor?.chain().focus().setFontSize(s.label).run();
-                          setShowMoreMenu(false);
-                        }}
-                        className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-cream/30 hover:bg-cream text-foreground"
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {FONT_FAMILIES.map((f) => (
-                      <button
-                        key={f.shortName}
-                        type="button"
-                        onClick={() => {
-                          editor?.chain().focus().setFontFamily(f.value).run();
-                          setShowMoreMenu(false);
-                        }}
-                        className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-cream/30 hover:bg-cream text-foreground"
-                      >
-                        {f.shortName}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        editor?.chain().focus().toggleStrike().run();
-                        setShowMoreMenu(false);
-                      }}
-                      className="px-2 py-0.5 text-[11px] rounded-md border border-border/80 bg-cream/30 hover:bg-cream text-foreground"
-                    >
-                      Strikethrough
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* FLOATING UPPER SELECTION BAR (BubbleMenu with Undo, Redo, B, I, U, Highlight) */}
-          {editor && (
-            <BubbleMenu
-              editor={editor}
-              tippyOptions={{ duration: 150, zIndex: 60, maxWidth: "none" }}
-              shouldShow={({ editor: e, from, to }) => from !== to && !e.state.selection.empty}
-              className="flex max-w-[calc(100vw-24px)] flex-wrap items-center gap-1 rounded-2xl border border-border/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md text-foreground"
-            >
-              {/* Undo & Redo on selection */}
-              <button
-                type="button"
-                disabled={!editor.can().undo()}
-                onClick={() => editor.chain().focus().undo().run()}
-                className="rounded-lg p-1.5 text-muted hover:bg-cream/60 hover:text-foreground disabled:opacity-30 active:scale-95 transition cursor-pointer"
-                title="Undo"
-              >
-                <Undo2 size={13} />
-              </button>
-              <button
-                type="button"
-                disabled={!editor.can().redo()}
-                onClick={() => editor.chain().focus().redo().run()}
-                className="rounded-lg p-1.5 text-muted hover:bg-cream/60 hover:text-foreground disabled:opacity-30 active:scale-95 transition cursor-pointer"
-                title="Redo"
-              >
-                <Redo2 size={13} />
-              </button>
-
-              <div className="h-3.5 w-px bg-border/70 mx-0.5" />
-
-              {/* Bold, Italic, Underline */}
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className={`rounded-lg p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor.isActive("bold") ? "bg-cream text-accent font-bold" : "text-muted hover:text-foreground"
-                }`}
-                title="Bold"
-              >
-                <Bold size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={`rounded-lg p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor.isActive("italic") ? "bg-cream text-accent font-bold" : "text-muted hover:text-foreground"
-                }`}
-                title="Italic"
-              >
-                <Italic size={13} />
-              </button>
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleUnderline().run()}
-                className={`rounded-lg p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor.isActive("underline") ? "bg-cream text-accent font-bold" : "text-muted hover:text-foreground"
-                }`}
-                title="Underline"
-              >
-                <UnderlineIcon size={13} />
-              </button>
-
-              <div className="h-3.5 w-px bg-border/70 mx-0.5" />
-
-              {/* Quick Highlight toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (editor.isActive("highlight")) {
-                    editor.chain().focus().unsetHighlight().run();
-                  } else {
-                    editor.chain().focus().toggleHighlight({ color: "#fef08a" }).run();
-                  }
-                }}
-                className={`rounded-lg p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor.isActive("highlight") ? "bg-yellow-200 text-yellow-900" : "text-muted hover:text-foreground"
-                }`}
-                title="Highlight"
-              >
-                <Highlighter size={13} />
-              </button>
-
-              {/* Quick Heading Level 2 */}
-              <button
-                type="button"
-                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                className={`rounded-lg p-1.5 active:scale-95 transition cursor-pointer ${
-                  editor.isActive("heading", { level: 2 }) ? "bg-cream text-accent font-bold" : "text-muted hover:text-foreground"
-                }`}
-                title="Heading"
-              >
-                <Heading size={13} />
-              </button>
-            </BubbleMenu>
-          )}
-
-          {/* TipTap Rich Text Editor Container */}
-          <div className="flex-1 w-full min-h-[300px] overflow-auto">
-            <EditorContent editor={editor} className="min-h-full" />
-          </div>
-
-          {/* Paste notice feedback */}
-          <AnimatePresence>
-            {pasteNotice && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="m-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800"
-              >
-                <Info size={14} className="shrink-0 mt-0.5 text-amber-600" />
-                <span className="leading-snug">{pasteNotice}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {error && (
-            <p role="alert" className="m-3 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
-              {error}
-            </p>
-          )}
-        </div>
+        {error && (
+          <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+            {error}
+          </p>
+        )}
       </main>
 
-      {/* 3. Ergonomic Bottom Floating Action Dock */}
-      <footer className="sticky bottom-0 z-30 border-t border-border/70 bg-white/95 p-3 backdrop-blur-md">
+      {/* 5. Squeezed Ergonomic Bottom Action Bar ("bottom button ko squeeze kr do") */}
+      <footer className="shrink-0 border-t border-border/70 bg-white/95 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md z-30">
         <div className="mx-auto flex max-w-lg items-center gap-2">
-          {/* Primary Action: Paste from Phone */}
+          {/* Primary Action: Squeezed Paste from Phone Button */}
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={() => void handlePaste()}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-accent py-3 px-4 text-xs font-semibold text-white shadow-xs hover:bg-accent/90 transition cursor-pointer"
+            className="flex-1 h-10 flex items-center justify-center gap-1.5 rounded-xl bg-accent px-3 text-xs font-semibold text-white shadow-xs hover:bg-accent/90 active:scale-95 transition cursor-pointer"
           >
             {hasPastedSuccess ? (
               <>
-                <Check size={16} className="text-emerald-300" />
+                <Check size={15} className="text-emerald-300" />
                 <span>Pasted & Sent!</span>
               </>
             ) : (
               <>
-                <Clipboard size={16} />
+                <Clipboard size={15} />
                 <span>Paste from phone</span>
               </>
             )}
           </motion.button>
 
-          {/* Secondary Action: Copy */}
+          {/* Secondary Action: Squeezed Copy Button */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => void copy()}
             disabled={!charCount}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-cream/40 py-3 px-3.5 text-xs font-medium text-foreground hover:bg-cream transition disabled:opacity-40 cursor-pointer"
+            className="h-10 px-3 flex items-center justify-center gap-1.5 rounded-xl border border-border bg-stone-50 text-xs font-medium text-foreground hover:bg-stone-100 transition disabled:opacity-40 cursor-pointer"
             title="Copy note"
             aria-label="Copy note"
           >
             {hasCopied ? (
               <>
-                <Check size={15} className="text-emerald-600" />
-                <span className="hidden sm:inline">Copied</span>
+                <Check size={14} className="text-emerald-600" />
+                <span className="text-xs">Copied</span>
               </>
             ) : (
               <>
-                <Copy size={15} className="text-muted" />
-                <span className="hidden sm:inline">Copy</span>
+                <Copy size={14} className="text-muted" />
+                <span className="text-xs">Copy</span>
               </>
             )}
           </motion.button>
 
-          {/* Secondary Action: Clear */}
+          {/* Secondary Action: Squeezed Clear Button */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={clear}
             disabled={!charCount}
-            className="grid size-11 place-items-center rounded-xl border border-border bg-cream/40 text-muted hover:text-red-600 hover:bg-red-50/60 transition disabled:opacity-40 cursor-pointer"
+            className="size-10 flex items-center justify-center rounded-xl border border-border bg-stone-50 text-muted hover:text-red-600 hover:bg-red-50/60 transition disabled:opacity-40 cursor-pointer shrink-0"
             title="Clear text"
             aria-label="Clear text"
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
           </motion.button>
         </div>
       </footer>
@@ -1192,7 +1132,7 @@ function ConnectingScreen({ subtext }: { subtext?: string }) {
   const DeviceIcon = deviceIndex === 0 ? Laptop : Monitor;
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] text-foreground flex flex-col justify-center items-center p-6 text-center">
+    <div className="h-[100dvh] max-h-[100dvh] bg-[#FDFCFB] text-foreground flex flex-col justify-center items-center p-6 text-center">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}

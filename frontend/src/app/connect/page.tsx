@@ -15,13 +15,17 @@ import {
   Trash2,
   Copy,
   Info,
-  Loader2,
   Laptop,
   Monitor,
   MoreVertical,
   Undo2,
   Redo2,
   Highlighter,
+  QrCode,
+  ShieldCheck,
+  Smartphone,
+  ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -180,7 +184,16 @@ function ConnectContent() {
 
   // Connection & Token Claiming (with demo/bypass support for easy testing)
   useEffect(() => {
-    // 1. Bypass mode for testing & demo (e.g. ?token=demo or ?token=test)
+    // Testing / Demo bypass mode
+    if (token === "closed" || query.get("state") === "closed") {
+      setStatus("unavailable");
+      setError("The connection was ended by your system.");
+      return;
+    }
+    if (token === "connecting" || query.get("state") === "connecting") {
+      setStatus("connecting");
+      return;
+    }
     if (token === "demo" || token === "test" || token === "bypass") {
       setStatus("connected");
       if (editor && !editor.isDestroyed && editor.isEmpty) {
@@ -584,30 +597,87 @@ function ConnectContent() {
 
   if (status === "unavailable") {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center p-6 text-center">
-        <div className="w-full max-w-sm rounded-3xl border border-border bg-white p-6 shadow-sm flex flex-col items-center">
-          <div className="grid size-14 place-items-center rounded-2xl bg-cream text-muted shadow-2xs mb-4">
-            <LogOut size={26} className="text-muted" />
+      <div className="h-[100dvh] max-h-[100dvh] bg-[#FAF9F6] text-foreground flex flex-col justify-between w-full overflow-hidden select-none">
+        {/* 1. Sleek Mobile Top Header */}
+        <header className="shrink-0 h-14 flex items-center justify-between border-b border-border/70 bg-white/90 px-4 backdrop-blur-md z-20">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="grid size-8 place-items-center rounded-xl bg-accent text-white shadow-2xs">
+              <Clipboard size={16} strokeWidth={2.3} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold tracking-tight text-foreground leading-none">CopySync</span>
+              <span className="text-[10px] text-muted leading-tight mt-0.5">Mobile Sync</span>
+            </div>
+          </Link>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-100 border border-stone-200/80 text-[11px] font-medium text-stone-600">
+            <span className="size-1.5 rounded-full bg-stone-400" />
+            <span>Disconnected</span>
           </div>
-          <h2 className="text-lg font-bold text-foreground">Connection Closed</h2>
-          <p className="mt-1.5 text-xs text-muted leading-relaxed">
-            {error || "This pairing session has ended or expired."}
+        </header>
+
+        {/* 2. Main Content Cards & Context */}
+        <main className="flex-1 min-h-0 w-full overflow-y-auto px-4 py-6 flex flex-col justify-center items-center max-w-sm mx-auto">
+          {/* Animated Status Visual */}
+          <div className="relative mb-5">
+            <div className="grid size-20 place-items-center rounded-3xl bg-amber-50 border border-amber-200/80 text-amber-600 shadow-sm">
+              <Smartphone size={32} strokeWidth={1.8} />
+            </div>
+            <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-white border border-stone-200 text-stone-500 shadow-xs">
+              <LogOut size={13} strokeWidth={2.2} />
+            </span>
+          </div>
+
+          <h1 className="text-xl font-bold tracking-tight text-foreground text-center">
+            Connection Closed
+          </h1>
+          <p className="mt-2 text-xs text-muted text-center leading-relaxed max-w-xs">
+            {error || "This pairing session has ended. Your phone is no longer syncing live with your laptop."}
           </p>
 
-          <div className="mt-4 w-full rounded-2xl border border-border/80 bg-cream/50 p-4 text-xs text-muted text-center leading-relaxed">
-            <span className="font-semibold text-foreground block mb-0.5">Want to reconnect?</span>
-            To connect again, please scan the QR code displayed on your system screen.
-          </div>
+          {/* Interactive Information & Reconnect Cards */}
+          <div className="mt-6 w-full space-y-3">
+            {/* Card 1: How to reconnect */}
+            <div className="rounded-2xl border border-border/80 bg-white p-4 shadow-xs">
+              <div className="flex items-start gap-3">
+                <div className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent shrink-0 mt-0.5">
+                  <QrCode size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xs font-bold text-foreground">Want to reconnect?</h2>
+                  <p className="text-[11px] text-muted leading-relaxed mt-0.5">
+                    Open your notes on your laptop and scan the pairing QR code with your camera to start a new live session.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-          <div className="mt-5 w-full">
+            {/* Card 2: Workspace Data Safety */}
+            <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/50 p-3.5 flex items-start gap-3">
+              <div className="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0 mt-0.5">
+                <ShieldCheck size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[11px] font-semibold text-emerald-950">Notes preserved</h3>
+                <p className="text-[11px] text-emerald-800/90 leading-snug mt-0.5">
+                  Any text or images sent during the session remain safe on your laptop workspace.
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* 3. Ergonomic Bottom Thumb Zone Actions */}
+        <footer className="shrink-0 border-t border-border/70 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md z-20">
+          <div className="mx-auto flex max-w-sm flex-col gap-2">
             <Link
               href="/"
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent text-white py-2.5 text-xs font-semibold shadow-xs hover:bg-accent/90 transition"
+              className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-accent text-white text-xs font-semibold shadow-xs hover:bg-accent/90 active:scale-[0.98] transition cursor-pointer"
             >
+              <ArrowLeft size={15} />
               <span>Return Home</span>
             </Link>
           </div>
-        </div>
+        </footer>
       </div>
     );
   }
@@ -1137,58 +1207,89 @@ function ConnectingScreen({ subtext }: { subtext?: string }) {
   const DeviceIcon = deviceIndex === 0 ? Laptop : Monitor;
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] bg-[#FDFCFB] text-foreground flex flex-col justify-center items-center p-6 text-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.25 }}
-        className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center"
-      >
-        <div className="relative mb-5">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentDevice}
-              initial={{ opacity: 0, scale: 0.85, rotate: -6 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              exit={{ opacity: 0, scale: 0.85, rotate: 6 }}
-              transition={{ duration: 0.28 }}
-              className="grid size-16 place-items-center rounded-2xl bg-cream text-accent shadow-2xs"
-            >
-              <DeviceIcon size={32} />
-            </motion.div>
-          </AnimatePresence>
-          <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-white shadow-xs">
-            <Loader2 size={12} className="animate-spin" />
-          </span>
+    <div className="h-[100dvh] max-h-[100dvh] bg-[#FAF9F6] text-foreground flex flex-col justify-between w-full overflow-hidden select-none">
+      {/* 1. Sleek Mobile Top Header */}
+      <header className="shrink-0 h-14 flex items-center justify-between border-b border-border/70 bg-white/90 px-4 backdrop-blur-md z-20">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="grid size-8 place-items-center rounded-xl bg-accent text-white shadow-2xs">
+            <Clipboard size={16} strokeWidth={2.3} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold tracking-tight text-foreground leading-none">CopySync</span>
+            <span className="text-[10px] text-muted leading-tight mt-0.5">Mobile Sync</span>
+          </div>
+        </Link>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/10 text-[11px] font-medium text-accent">
+          <span className="size-1.5 rounded-full bg-accent animate-pulse" />
+          <span>Connecting...</span>
+        </div>
+      </header>
+
+      {/* 2. Main Pairing Content */}
+      <main className="flex-1 min-h-0 w-full overflow-y-auto px-4 py-6 flex flex-col justify-center items-center max-w-sm mx-auto">
+        {/* Animated Dual Device Visual */}
+        <div className="relative mb-6 flex items-center justify-center gap-4">
+          <div className="grid size-16 place-items-center rounded-2xl bg-white border border-border/80 shadow-sm text-foreground">
+            <Smartphone size={28} className="text-accent" />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="size-1.5 rounded-full bg-accent/40 animate-ping" />
+            <RefreshCw size={18} className="text-accent animate-spin" />
+            <span className="size-1.5 rounded-full bg-accent/40 animate-ping" />
+          </div>
+
+          <div className="grid size-16 place-items-center rounded-2xl bg-white border border-border/80 shadow-sm text-foreground">
+            <DeviceIcon size={28} className="text-foreground" />
+          </div>
         </div>
 
-        <div className="flex items-center justify-center gap-1.5 text-lg font-bold text-foreground">
-          <span>Connecting to</span>
-          <span className="relative inline-flex overflow-hidden py-0.5">
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={currentDevice}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="text-accent underline decoration-accent/35 decoration-wavy underline-offset-4"
-              >
-                {currentDevice}...
-              </motion.span>
-            </AnimatePresence>
-          </span>
-        </div>
-
-        <p className="mt-1.5 text-xs text-muted leading-relaxed max-w-xs">
-          {subtext || `Connecting directly to your ${currentDevice.toLowerCase()} notes workspace. Text you copy on mobile will stream live.`}
+        <h1 className="text-xl font-bold tracking-tight text-foreground text-center">
+          Connecting to {currentDevice}...
+        </h1>
+        <p className="mt-2 text-xs text-muted text-center leading-relaxed max-w-xs">
+          {subtext || `Establishing an encrypted real-time channel with your ${currentDevice.toLowerCase()} notes.`}
         </p>
 
-        <div className="mt-6 w-full rounded-2xl border border-accent/20 bg-accent/5 p-3.5 text-xs text-accent font-medium flex items-center justify-center gap-2">
-          <Loader2 size={13} className="animate-spin text-accent shrink-0" />
-          <span>Waiting for {currentDevice.toLowerCase()} notes page to open...</span>
+        {/* Feature Context Cards */}
+        <div className="mt-6 w-full space-y-3">
+          <div className="rounded-2xl border border-border/80 bg-white p-3.5 shadow-xs flex items-center gap-3">
+            <div className="grid size-9 place-items-center rounded-xl bg-accent/10 text-accent shrink-0">
+              <Zap size={18} />
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold text-foreground">Real-time sync</h2>
+              <p className="text-[11px] text-muted leading-snug mt-0.5">
+                Text and notes typed on mobile stream live to your laptop with zero delay.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/80 bg-white p-3.5 shadow-xs flex items-center gap-3">
+            <div className="grid size-9 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 shrink-0">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-foreground">Private & passwordless</h3>
+              <p className="text-[11px] text-muted leading-snug mt-0.5">
+                No login required. Session expires automatically when you close the tab.
+              </p>
+            </div>
+          </div>
         </div>
-      </motion.div>
+      </main>
+
+      {/* 3. Bottom Cancel / Home Button */}
+      <footer className="shrink-0 border-t border-border/70 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md z-20">
+        <div className="mx-auto flex max-w-sm flex-col gap-2">
+          <Link
+            href="/"
+            className="w-full h-11 flex items-center justify-center gap-2 rounded-xl border border-border bg-stone-50 text-stone-700 text-xs font-semibold hover:bg-stone-100 active:scale-[0.98] transition cursor-pointer"
+          >
+            <span>Cancel & Return Home</span>
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }

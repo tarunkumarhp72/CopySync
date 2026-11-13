@@ -131,10 +131,10 @@ export default function GuestPage() {
               : Date.now() + 60 * 60 * 1000;
             localStorage.setItem("copysync_guest_expires_at", expiresAtMs.toString());
           }
-          // Swift transition to the full Rich Text Notes page (/notes) via client-side routing
+          // Smooth transition to the full Rich Text Notes page (/notes) via client-side routing
           setTimeout(() => {
             router.push("/notes");
-          }, 350);
+          }, 600);
         }
       } catch {
         // Ignore unparseable frames

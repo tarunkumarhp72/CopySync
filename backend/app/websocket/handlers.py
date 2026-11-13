@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 import logging
 
@@ -103,11 +104,34 @@ async def guest_websocket(
         manager.disconnect(channel, websocket)
         await presence_manager.unregister_socket("guest", session_id, device_id, websocket)
         if role == "receiver":
-            if not manager.role_in_use(channel, "receiver"):
-                await manager.broadcast(channel, {"type": "session.receiver_left", "session_id": session_id, "timestamp": datetime.now(timezone.utc).isoformat()})
+            async def delayed_receiver_left():
+                await asyncio.sleep(10)
+                if not manager.role_in_use(channel, "receiver"):
+                    await manager.broadcast(
+                        channel,
+                        {
+                            "type": "session.receiver_left",
+                            "session_id": session_id,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+
+            asyncio.create_task(delayed_receiver_left())
         elif role == "sender":
-            if not manager.role_in_use(channel, "sender"):
-                await manager.broadcast(channel, {"type": "session.sender_left", "session_id": session_id, "timestamp": datetime.now(timezone.utc).isoformat()})
+            async def delayed_sender_left():
+                # Allow 15s grace period for laptop route transitions (/guest -> /notes) or page reload
+                await asyncio.sleep(15)
+                if not manager.role_in_use(channel, "sender"):
+                    await manager.broadcast(
+                        channel,
+                        {
+                            "type": "session.sender_left",
+                            "session_id": session_id,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+
+            asyncio.create_task(delayed_sender_left())
 
 
 @router.websocket("/ws/presence")

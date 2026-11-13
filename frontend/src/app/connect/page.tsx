@@ -46,6 +46,7 @@ function ConnectContent() {
   const wsRef = useRef<WebSocket | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const senderLeftTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
 
   // Broadcast clipboard updates to WebSocket
@@ -130,13 +131,33 @@ function ConnectContent() {
         ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
-            if (msg.type === "session.closed" || msg.type === "session.sender_left") {
+            if (msg.type === "session.closed") {
+              if (senderLeftTimerRef.current) {
+                clearTimeout(senderLeftTimerRef.current);
+                senderLeftTimerRef.current = null;
+              }
               setStatus("unavailable");
-              setError("The connection was ended by your laptop.");
+              setError("The connection was ended by your system.");
               if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
               }
+              return;
+            }
+            if (msg.type === "session.sender_left") {
+              // Laptop may be navigating between /guest and /notes, or reloading.
+              // Wait 15s grace period before marking session disconnected.
+              if (senderLeftTimerRef.current) clearTimeout(senderLeftTimerRef.current);
+              senderLeftTimerRef.current = setTimeout(() => {
+                if (isMounted) {
+                  setStatus("unavailable");
+                  setError("The connection was ended by your system.");
+                  if (wsRef.current) {
+                    wsRef.current.close();
+                    wsRef.current = null;
+                  }
+                }
+              }, 15000);
               return;
             }
             // Laptop workspace is open and ready to sync!
@@ -145,6 +166,10 @@ function ConnectContent() {
               (msg.type === "session.connected" && msg.role === "sender") ||
               (msg.type === "sender.status" && msg.online)
             ) {
+              if (senderLeftTimerRef.current) {
+                clearTimeout(senderLeftTimerRef.current);
+                senderLeftTimerRef.current = null;
+              }
               if (isMounted) {
                 clearTimeout(fallbackTimer);
                 setStatus("connected");
@@ -196,6 +221,10 @@ function ConnectContent() {
       isMounted = false;
       if (pingInterval) clearInterval(pingInterval);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (senderLeftTimerRef.current) {
+        clearTimeout(senderLeftTimerRef.current);
+        senderLeftTimerRef.current = null;
+      }
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -253,7 +282,7 @@ function ConnectContent() {
             const data = await res.json();
             if (data.status === "closed" || data.status === "expired") {
               setStatus("unavailable");
-              setError("The connection was ended by your laptop.");
+              setError("The connection was ended by your system.");
               if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
@@ -277,13 +306,29 @@ function ConnectContent() {
           ws.onmessage = (event) => {
             try {
               const msg = JSON.parse(event.data);
-              if (msg.type === "session.closed" || msg.type === "session.sender_left") {
+              if (msg.type === "session.closed") {
+                if (senderLeftTimerRef.current) {
+                  clearTimeout(senderLeftTimerRef.current);
+                  senderLeftTimerRef.current = null;
+                }
                 setStatus("unavailable");
-                setError("The connection was ended by your laptop.");
+                setError("The connection was ended by your system.");
                 if (wsRef.current) {
                   wsRef.current.close();
                   wsRef.current = null;
                 }
+                return;
+              }
+              if (msg.type === "session.sender_left") {
+                if (senderLeftTimerRef.current) clearTimeout(senderLeftTimerRef.current);
+                senderLeftTimerRef.current = setTimeout(() => {
+                  setStatus("unavailable");
+                  setError("The connection was ended by your system.");
+                  if (wsRef.current) {
+                    wsRef.current.close();
+                    wsRef.current = null;
+                  }
+                }, 15000);
                 return;
               }
               if (
@@ -291,6 +336,10 @@ function ConnectContent() {
                 (msg.type === "session.connected" && msg.role === "sender") ||
                 (msg.type === "sender.status" && msg.online)
               ) {
+                if (senderLeftTimerRef.current) {
+                  clearTimeout(senderLeftTimerRef.current);
+                  senderLeftTimerRef.current = null;
+                }
                 setStatus("connected");
                 return;
               }
@@ -507,7 +556,7 @@ function ConnectContent() {
           {/* Reconnect Note */}
           <div className="mt-4 w-full rounded-2xl border border-border/80 bg-cream/50 p-4 text-xs text-muted text-center leading-relaxed">
             <span className="font-semibold text-foreground block mb-0.5">Want to reconnect?</span>
-            To connect again, please scan the QR code displayed on your laptop screen.
+            To connect again, please scan the QR code displayed on your system screen.
           </div>
 
           <div className="mt-5 w-full">

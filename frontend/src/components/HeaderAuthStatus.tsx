@@ -12,7 +12,8 @@ import {
   CheckCheck, 
   ShieldCheck, 
   Smartphone,
-  ExternalLink
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -65,6 +66,7 @@ export function HeaderAuthStatus() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
@@ -151,9 +153,17 @@ export function HeaderAuthStatus() {
     return (
       <Link
         href="/login"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3.5 py-1.5 text-xs sm:text-sm font-medium text-foreground shadow-2xs transition hover:bg-cream/60 active:scale-95"
+        onClick={() => setIsSigningIn(true)}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3.5 py-1.5 text-xs sm:text-sm font-medium text-foreground shadow-2xs transition hover:bg-cream/60 active:scale-95 cursor-pointer"
       >
-        <span>Sign in</span>
+        {isSigningIn ? (
+          <>
+            <Loader2 size={13} className="animate-spin text-accent" />
+            <span>Signing in...</span>
+          </>
+        ) : (
+          <span>Sign in</span>
+        )}
       </Link>
     );
   }

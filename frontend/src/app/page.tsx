@@ -13,7 +13,8 @@ import {
   FileText, 
   CheckCircle2, 
   Sparkles,
-  QrCode
+  QrCode,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShimmerButton } from "@/components/ui/ShimmerButton";
@@ -24,6 +25,7 @@ const targetDevices = ["laptop.", "desktop."];
 
 export default function Home() {
   const [deviceIndex, setDeviceIndex] = useState(0);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -416,9 +418,17 @@ export default function Home() {
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-cream/60"
+              onClick={() => setIsSigningIn(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground transition hover:bg-cream/60 cursor-pointer"
             >
-              <span>Sign in with Google</span>
+              {isSigningIn ? (
+                <>
+                  <Loader2 size={16} className="animate-spin text-accent" />
+                  <span>Opening sign in...</span>
+                </>
+              ) : (
+                <span>Sign in with Google</span>
+              )}
             </Link>
           </div>
         </div>

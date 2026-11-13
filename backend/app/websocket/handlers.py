@@ -65,11 +65,22 @@ async def guest_websocket(
         },
     )
 
+    # If receiver (mobile phone) connects, inform it whether sender (laptop) is currently active in the channel
+    if role == "receiver":
+        sender_online = manager.role_in_use(channel, "sender")
+        await websocket.send_json({
+            "type": "sender.status",
+            "online": sender_online,
+        })
+
     try:
         while True:
             event = await websocket.receive_json()
-            if event.get("type") not in {"clipboard.updated", "clipboard.cleared", "ping", "session.closed"}:
+            if event.get("type") not in {"clipboard.updated", "clipboard.cleared", "ping", "session.closed", "workspace.ready"}:
                 await websocket.send_json({"type": "error", "message": "Unsupported event"})
+                continue
+            if event["type"] == "workspace.ready":
+                await manager.broadcast(channel, event, exclude=websocket)
                 continue
             if event["type"] == "session.closed":
                 await manager.broadcast(channel, {"type": "session.closed", "session_id": session_id, "by": role, "timestamp": datetime.now(timezone.utc).isoformat()})

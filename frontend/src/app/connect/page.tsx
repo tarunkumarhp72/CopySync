@@ -16,6 +16,8 @@ import {
   Trash2,
   Copy,
   Info,
+  Loader2,
+  Laptop,
 } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -111,8 +113,15 @@ function ConnectContent() {
         wsRef.current = ws;
 
         ws.onopen = () => {
-          if (isMounted) setStatus("connected");
+          // Socket open; awaiting confirmation from laptop workspace
         };
+
+        // Fallback: transition after 4.5 seconds if laptop was already on /notes
+        const fallbackTimer = setTimeout(() => {
+          if (isMounted) {
+            setStatus((curr) => (curr === "connecting" ? "connected" : curr));
+          }
+        }, 4500);
 
         ws.onmessage = (event) => {
           try {
@@ -123,6 +132,18 @@ function ConnectContent() {
               if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
+              }
+              return;
+            }
+            // Laptop workspace is open and ready to sync!
+            if (
+              msg.type === "workspace.ready" ||
+              (msg.type === "session.connected" && msg.role === "sender") ||
+              (msg.type === "sender.status" && msg.online)
+            ) {
+              if (isMounted) {
+                clearTimeout(fallbackTimer);
+                setStatus("connected");
               }
               return;
             }
@@ -330,6 +351,32 @@ function ConnectContent() {
     setStatus("unavailable");
     setError("You ended this session.");
   };
+
+  if (status === "connecting") {
+    return (
+      <div className="min-h-screen bg-[#FDFCFB] text-foreground flex flex-col justify-center items-center p-6 text-center">
+        <div className="w-full max-w-sm rounded-3xl border border-border bg-white p-8 shadow-sm flex flex-col items-center">
+          <div className="relative mb-5">
+            <div className="grid size-16 place-items-center rounded-2xl bg-cream text-accent shadow-2xs">
+              <Laptop size={32} />
+            </div>
+            <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-accent text-white shadow-xs">
+              <Loader2 size={12} className="animate-spin" />
+            </span>
+          </div>
+          <h2 className="text-lg font-bold text-foreground">Connecting to Laptop...</h2>
+          <p className="mt-1.5 text-xs text-muted leading-relaxed max-w-xs">
+            Connecting directly to your laptop notes workspace. Text you copy on mobile will stream live.
+          </p>
+
+          <div className="mt-6 w-full rounded-2xl border border-accent/20 bg-accent/5 p-3.5 text-xs text-accent font-medium flex items-center justify-center gap-2">
+            <Loader2 size={13} className="animate-spin text-accent shrink-0" />
+            <span>Waiting for laptop notes page to open...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (status === "unavailable") {
     return (

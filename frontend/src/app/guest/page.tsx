@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Clipboard,
@@ -21,6 +22,7 @@ type GuestSession = { id: string; token: string; status: string; expires_at: str
 const api = process.env.NEXT_PROD_API_URL;
 
 export default function GuestPage() {
+  const router = useRouter();
   const [session, setSession] = useState<GuestSession>();
   const [error, setError] = useState<string>();
   const [turnstileToken, setTurnstileToken] = useState("");
@@ -30,6 +32,11 @@ export default function GuestPage() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const needsTurnstile = Boolean(process.env.NEXT_PROD_TURNSTILE_SITE_KEY);
+
+  // Prefetch /notes route in background so transition is instantaneous
+  useEffect(() => {
+    router.prefetch("/notes");
+  }, [router]);
 
   const create = async (token = turnstileToken) => {
     setError(undefined);
@@ -43,28 +50,30 @@ export default function GuestPage() {
     }
 
     try {
-      // 1. Create Guest Pairing Session (for QR Code + WebSocket channel)
-      const sessionRes = await fetch(`${api}/guest/session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sender_connection_id: crypto.randomUUID(),
-          turnstile_token: token || undefined,
+      // Create Guest Pairing Session and Guest Workspace in PARALLEL with Promise.all (cuts load time in half)
+      const [sessionRes, workspaceRes] = await Promise.all([
+        fetch(`${api}/guest/session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender_connection_id: crypto.randomUUID(),
+            turnstile_token: token || undefined,
+          }),
         }),
-      });
+        fetch(`${api}/guest-workspace`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            turnstile_token: token || undefined,
+          }),
+        }),
+      ]);
+
       if (!sessionRes.ok) throw new Error("Could not create a connection session.");
       const sessionData = await sessionRes.json();
       setSession(sessionData);
 
-      // 2. Create Guest Workspace in Database for storing guest notes
-      const workspaceRes = await fetch(`${api}/guest-workspace`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          turnstile_token: token || undefined,
-        }),
-      });
       if (workspaceRes.ok) {
         const workspaceData = await workspaceRes.json();
         if (workspaceData?.token && typeof window !== "undefined") {
@@ -122,10 +131,10 @@ export default function GuestPage() {
               : Date.now() + 60 * 60 * 1000;
             localStorage.setItem("copysync_guest_expires_at", expiresAtMs.toString());
           }
-          // Redirect directly to the full Rich Text Notes page (/notes)
+          // Swift transition to the full Rich Text Notes page (/notes) via client-side routing
           setTimeout(() => {
-            window.location.assign("/notes");
-          }, 1200);
+            router.push("/notes");
+          }, 350);
         }
       } catch {
         // Ignore unparseable frames
@@ -137,7 +146,7 @@ export default function GuestPage() {
       ws.close();
       wsRef.current = null;
     };
-  }, [session]);
+  }, [session, router]);
 
   const url = useMemo(
     () => session && `${window.location.origin}/connect?token=${encodeURIComponent(session.token)}`,

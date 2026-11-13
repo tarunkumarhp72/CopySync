@@ -248,6 +248,13 @@ export function NotesWorkspace({
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
+    ws.onopen = () => {
+      // Announce to pairing channel that laptop workspace is active and ready to sync
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "workspace.ready" }));
+      }
+    };
+
     ws.onclose = (ev) => {
       if (ev.code === 1008 && ev.reason?.includes("limit reached")) {
         setGuestLimitReached(true);

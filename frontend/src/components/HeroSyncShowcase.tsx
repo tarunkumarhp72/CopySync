@@ -185,22 +185,22 @@ export function HeroSyncShowcase() {
           <div className="flex items-center justify-between gap-1.5 sm:gap-4 md:gap-6 w-full max-w-full">
             
             {/* DEVICE 1: COMPACT PHONE (CLEAN & MINIMAL) */}
-            <div className="flex-none w-[110px] sm:w-[155px] md:w-[170px] flex flex-col items-center">
+            <div className="flex-none w-[105px] sm:w-[125px] md:w-[135px] flex flex-col items-center">
               {/* Phone Frame */}
-              <div className="w-full rounded-[1.25rem] sm:rounded-[1.75rem] border-[1.5px] sm:border-2 border-stone-800 bg-stone-900 p-0.5 sm:p-1 shadow-md">
-                <div className="relative overflow-hidden rounded-[1.1rem] sm:rounded-[1.5rem] bg-white border border-stone-200 flex flex-col h-[135px] sm:h-[175px] p-1.5 sm:p-2 justify-between">
+              <div className="w-full rounded-[1.1rem] sm:rounded-[1.4rem] border-[1.5px] sm:border-2 border-stone-800 bg-stone-900 p-0.5 sm:p-1 shadow-md">
+                <div className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.25rem] bg-white border border-stone-200 flex flex-col h-[125px] sm:h-[160px] p-1.5 sm:p-2 justify-between">
                   
                   {/* Phone Top Status Row */}
-                  <div className="px-1 flex items-center justify-between text-[8px] sm:text-[9px] font-semibold text-stone-500">
+                  <div className="px-1 flex items-center justify-between text-[7.5px] sm:text-[8.5px] font-semibold text-stone-500">
                     <span>9:41</span>
                     {/* Dynamic Island */}
-                    <div className="h-1.5 w-6 sm:w-8 rounded-full bg-stone-800" />
-                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    <div className="h-1 sm:h-1.5 w-5 sm:w-7 rounded-full bg-stone-800" />
+                    <span className="size-1 sm:size-1.5 rounded-full bg-emerald-500" />
                   </div>
 
                   {/* Phone Body (Clean & Spacious) */}
-                  <div className="my-auto py-1 flex flex-col items-center text-center">
-                    <span className="text-[7.5px] sm:text-[9px] uppercase font-bold text-stone-400 tracking-wider mb-1">
+                  <div className="my-auto py-0.5 flex flex-col items-center text-center">
+                    <span className="text-[7px] sm:text-[8px] uppercase font-bold text-stone-400 tracking-wider mb-0.5">
                       {current.sourceApp}
                     </span>
                     <motion.div
@@ -210,11 +210,11 @@ export function HeroSyncShowcase() {
                           : {}
                       }
                       transition={{ duration: 0.35 }}
-                      className={`w-full py-1 sm:py-1.5 px-1.5 rounded-md border text-center transition-all ${
+                      className={`w-full py-0.5 sm:py-1 px-1 rounded-md border text-center transition-all ${
                         stage === "copying" ? "ring-2 ring-accent/30 bg-accent/5 border-accent" : "bg-stone-50 border-stone-200"
                       }`}
                     >
-                      <span className="block font-mono text-[10.5px] sm:text-xs font-bold text-stone-900 truncate">
+                      <span className="block font-mono text-[10px] sm:text-[11px] font-bold text-stone-900 truncate">
                         {current.value}
                       </span>
                     </motion.div>
@@ -223,7 +223,7 @@ export function HeroSyncShowcase() {
                   {/* Phone Bottom Button */}
                   <motion.div
                     animate={stage === "copying" ? { scale: [1, 0.95, 1] } : {}}
-                    className={`w-full py-1 sm:py-1.5 px-1 rounded-md flex items-center justify-center gap-1 text-[8.5px] sm:text-[10.5px] font-bold transition-all ${
+                    className={`w-full py-0.5 sm:py-1 px-1 rounded-md flex items-center justify-center gap-1 text-[8px] sm:text-[9.5px] font-bold transition-all ${
                       stage === "copying"
                         ? "bg-accent text-white shadow-xs"
                         : "bg-stone-800 text-white"
@@ -231,12 +231,12 @@ export function HeroSyncShowcase() {
                   >
                     {stage === "copying" ? (
                       <>
-                        <Check size={9} strokeWidth={2.5} />
+                        <Check size={8} strokeWidth={2.5} />
                         <span>Copied!</span>
                       </>
                     ) : (
                       <>
-                        <Copy size={9} />
+                        <Copy size={8} />
                         <span>Tap Copy</span>
                       </>
                     )}
@@ -245,9 +245,9 @@ export function HeroSyncShowcase() {
               </div>
 
               {/* Caption */}
-              <div className="mt-1.5 text-center">
-                <div className="text-[9.5px] sm:text-xs font-bold text-stone-800">1. Copy on Phone</div>
-                <div className="text-[8px] sm:text-[9px] text-stone-500">No app install</div>
+              <div className="mt-1 text-center">
+                <div className="text-[9px] sm:text-xs font-bold text-stone-800">1. Copy on Phone</div>
+                <div className="text-[7.5px] sm:text-[9px] text-stone-500">No app install</div>
               </div>
             </div>
 
@@ -284,42 +284,42 @@ export function HeroSyncShowcase() {
                       : "bg-white text-stone-600 border-stone-200"
                   }`}
                 >
-                  <Zap size={11} className={stage === "beaming" ? "animate-spin text-white" : "text-accent"} />
+                  <Zap size={10} className={stage === "beaming" ? "animate-spin text-white" : "text-accent"} />
                   <span className="hidden sm:inline text-[9px] font-bold ml-1">
                     {stage === "beaming" ? "Syncing" : "0ms"}
                   </span>
                 </motion.div>
 
-                <ArrowRight size={11} className="text-stone-400 -mt-0.5" />
+                <ArrowRight size={10} className="text-stone-400 -mt-0.5" />
               </div>
             </div>
 
             {/* DEVICE 2: PROMINENT WIDESCREEN DESKTOP */}
-            <div className="flex-1 min-w-0 max-w-[205px] sm:max-w-[340px] md:max-w-[380px] flex flex-col items-center">
+            <div className="flex-1 min-w-0 max-w-[210px] sm:max-w-[340px] md:max-w-[380px] flex flex-col items-center">
               {/* Desktop Monitor Shell */}
               <div className="w-full flex flex-col items-center">
                 {/* Monitor Display Screen */}
                 <div className="w-full rounded-lg sm:rounded-xl border-[1.5px] sm:border-2 border-stone-800 bg-stone-900 p-0.5 sm:p-1 shadow-md">
-                  <div className="relative overflow-hidden rounded-md sm:rounded-lg bg-white border border-stone-200 flex flex-col h-[135px] sm:h-[175px] p-1.5 sm:p-2 justify-between">
+                  <div className="relative overflow-hidden rounded-md sm:rounded-lg bg-white border border-stone-200 flex flex-col h-[108px] sm:h-[160px] p-1.5 sm:p-2 justify-between">
                     
                     {/* Desktop Window Header */}
-                    <div className="flex items-center justify-between border-b border-stone-100 pb-1 text-[8px] sm:text-[9px]">
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-0.5 sm:pb-1 text-[7.5px] sm:text-[9px]">
                       <div className="flex items-center gap-1">
-                        <span className="size-1.5 rounded-full bg-red-400" />
-                        <span className="size-1.5 rounded-full bg-amber-400" />
-                        <span className="size-1.5 rounded-full bg-emerald-400" />
+                        <span className="size-1 sm:size-1.5 rounded-full bg-red-400" />
+                        <span className="size-1 sm:size-1.5 rounded-full bg-amber-400" />
+                        <span className="size-1 sm:size-1.5 rounded-full bg-emerald-400" />
                       </div>
-                      <span className="font-mono text-stone-400 text-[8px] sm:text-[9px]">
+                      <span className="font-mono text-stone-400 text-[7.5px] sm:text-[9px]">
                         copysync.app
                       </span>
-                      <span className="text-[7.5px] sm:text-[8.5px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200/50">
+                      <span className="text-[7px] sm:text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200/50">
                         Live
                       </span>
                     </div>
 
                     {/* Desktop Body (Clean & Spacious) */}
-                    <div className="my-auto py-1 flex flex-col items-center text-center">
-                      <span className="text-[7.5px] sm:text-[9px] uppercase font-bold text-stone-400 tracking-wider mb-1">
+                    <div className="my-auto py-0.5 flex flex-col items-center text-center">
+                      <span className="text-[7px] sm:text-[8.5px] uppercase font-bold text-stone-400 tracking-wider mb-0.5">
                         {current.targetApp}
                       </span>
                       <motion.div
@@ -329,13 +329,13 @@ export function HeroSyncShowcase() {
                             : {}
                         }
                         transition={{ duration: 0.35 }}
-                        className={`w-full py-1 sm:py-1.5 px-2 rounded-md border text-center transition-all ${
+                        className={`w-full py-0.5 sm:py-1 px-1.5 rounded-md border text-center transition-all ${
                           stage === "received"
                             ? "bg-emerald-50/70 border-emerald-300 ring-1 sm:ring-2 ring-emerald-200"
                             : "bg-stone-50 border-stone-200 opacity-60"
                         }`}
                       >
-                        <span className="block font-mono text-[10.5px] sm:text-xs font-bold text-stone-900 truncate">
+                        <span className="block font-mono text-[10px] sm:text-xs font-bold text-stone-900 truncate">
                           {current.value}
                         </span>
                       </motion.div>
@@ -343,28 +343,28 @@ export function HeroSyncShowcase() {
 
                     {/* Desktop Bottom Status */}
                     <div
-                      className={`w-full py-1 sm:py-1.5 px-1 rounded-md flex items-center justify-center gap-1 text-[8.5px] sm:text-[10px] font-bold transition-all ${
+                      className={`w-full py-0.5 sm:py-1 px-1 rounded-md flex items-center justify-center gap-1 text-[8px] sm:text-[9.5px] font-bold transition-all ${
                         stage === "received"
                           ? "bg-emerald-600 text-white shadow-xs"
                           : "bg-stone-100 text-stone-400"
                       }`}
                     >
-                      <CheckCircle2 size={10} strokeWidth={2.5} />
+                      <CheckCircle2 size={9} strokeWidth={2.5} />
                       <span>Ctrl + V Ready</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Monitor Stand Neck */}
-                <div className="w-6 sm:w-10 h-2 sm:h-3 bg-stone-300 border-x border-stone-400/50" />
+                <div className="w-5 sm:w-9 h-1.5 sm:h-2.5 bg-stone-300 border-x border-stone-400/50" />
                 {/* Monitor Stand Base Foot */}
-                <div className="w-16 sm:w-26 h-1 sm:h-1.5 bg-stone-300 rounded-xs shadow-xs border border-stone-400/50" />
+                <div className="w-14 sm:w-24 h-1 sm:h-1.5 bg-stone-300 rounded-xs shadow-xs border border-stone-400/50" />
               </div>
 
               {/* Caption */}
-              <div className="mt-1.5 text-center">
-                <div className="text-[9.5px] sm:text-xs font-bold text-stone-800">2. Ready on Desktop</div>
-                <div className="text-[8px] sm:text-[9px] text-stone-500">Just press Ctrl+V</div>
+              <div className="mt-1 text-center">
+                <div className="text-[9px] sm:text-xs font-bold text-stone-800">2. Ready on Desktop</div>
+                <div className="text-[7.5px] sm:text-[9px] text-stone-500">Just press Ctrl+V</div>
               </div>
             </div>
 
@@ -373,26 +373,26 @@ export function HeroSyncShowcase() {
           /* LIVE NOTES SYNC VIEW: COMPACT & AIRY */
           <div className="flex items-center justify-between gap-1.5 sm:gap-4 md:gap-6 w-full max-w-full">
             {/* Phone Note Editor */}
-            <div className="flex-none w-[110px] sm:w-[155px] md:w-[170px]">
-              <div className="rounded-lg sm:rounded-xl border border-stone-200 bg-white p-2 sm:p-2.5 shadow-sm h-[140px] sm:h-[180px] flex flex-col justify-between">
+            <div className="flex-none w-[105px] sm:w-[125px] md:w-[135px]">
+              <div className="rounded-lg sm:rounded-xl border border-stone-200 bg-white p-1.5 sm:p-2.5 shadow-sm h-[120px] sm:h-[155px] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between border-b border-stone-100 pb-1 mb-1.5">
-                    <span className="text-[8.5px] sm:text-[11px] font-bold text-stone-800 flex items-center gap-1">
-                      <Smartphone size={10} className="text-accent" />
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-0.5 mb-1">
+                    <span className="text-[8px] sm:text-[10px] font-bold text-stone-800 flex items-center gap-1">
+                      <Smartphone size={9} className="text-accent" />
                       <span>Phone</span>
                     </span>
-                    <span className="text-[7.5px] sm:text-[8.5px] text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded font-mono">
+                    <span className="text-[7px] sm:text-[8px] text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded font-mono">
                       Live
                     </span>
                   </div>
-                  <div className="space-y-0.5 text-[8.5px] sm:text-[10.5px] text-stone-700">
+                  <div className="space-y-0.5 text-[8px] sm:text-[10px] text-stone-700">
                     <div className="font-bold text-stone-900 truncate">Project Notes 🚀</div>
                     <div>• Scan QR</div>
                     <div>• <span className="bg-yellow-200 px-0.5 rounded text-yellow-900">Highlight</span></div>
                     <div className="text-accent font-medium">• Instant sync ⚡️</div>
                   </div>
                 </div>
-                <div className="text-[8px] sm:text-[8.5px] text-stone-400 text-center border-t border-stone-100 pt-0.5">
+                <div className="text-[7.5px] sm:text-[8px] text-stone-400 text-center border-t border-stone-100 pt-0.5">
                   1. Type on phone
                 </div>
               </div>
@@ -407,19 +407,19 @@ export function HeroSyncShowcase() {
             </div>
 
             {/* Desktop Note Canvas */}
-            <div className="flex-1 min-w-0 max-w-[205px] sm:max-w-[340px] md:max-w-[380px]">
-              <div className="rounded-lg sm:rounded-xl border border-stone-200 bg-white p-2 sm:p-3 shadow-sm h-[140px] sm:h-[180px] flex flex-col justify-between">
+            <div className="flex-1 min-w-0 max-w-[210px] sm:max-w-[340px] md:max-w-[380px]">
+              <div className="rounded-lg sm:rounded-xl border border-stone-200 bg-white p-1.5 sm:p-2.5 shadow-sm h-[120px] sm:h-[155px] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between border-b border-stone-100 pb-1 mb-1.5">
-                    <span className="text-[9px] sm:text-xs font-bold text-stone-800 flex items-center gap-1">
-                      <Monitor size={11} className="text-accent" />
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-0.5 mb-1">
+                    <span className="text-[8.5px] sm:text-[11px] font-bold text-stone-800 flex items-center gap-1">
+                      <Monitor size={10} className="text-accent" />
                       <span>Desktop Workspace</span>
                     </span>
-                    <span className="text-[7.5px] sm:text-[8.5px] text-stone-500 bg-stone-100 px-1 py-0.5 rounded font-mono">
+                    <span className="text-[7px] sm:text-[8px] text-stone-500 bg-stone-100 px-1 py-0.5 rounded font-mono">
                       Auto-saved
                     </span>
                   </div>
-                  <div className="space-y-0.5 sm:space-y-1 text-[9px] sm:text-[11px] text-stone-700">
+                  <div className="space-y-0.5 text-[8.5px] sm:text-[10px] text-stone-700">
                     <div className="font-bold text-stone-900">Project Notes 🚀</div>
                     <div>• Scan QR</div>
                     <div>• <span className="bg-yellow-200 px-1 rounded text-yellow-900">Highlight</span></div>
@@ -428,7 +428,7 @@ export function HeroSyncShowcase() {
                     </div>
                   </div>
                 </div>
-                <div className="text-[8px] sm:text-[8.5px] text-stone-400 text-center border-t border-stone-100 pt-0.5">
+                <div className="text-[7.5px] sm:text-[8px] text-stone-400 text-center border-t border-stone-100 pt-0.5">
                   2. Synced on desktop
                 </div>
               </div>

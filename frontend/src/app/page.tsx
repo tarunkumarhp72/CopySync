@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { 
   Clipboard, 
@@ -13,25 +13,13 @@ import {
   QrCode, 
   Loader2, 
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { ShimmerButton } from "@/components/ui/ShimmerButton";
 import { HeaderAuthStatus } from "@/components/HeaderAuthStatus";
 import { HeroSyncShowcase } from "@/components/HeroSyncShowcase";
 
-const targetDevices = ["laptop.", "desktop."];
-
 export default function Home() {
-  const [deviceIndex, setDeviceIndex] = useState(0);
   const [isSigningIn, setIsSigningIn] = useState(false);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setDeviceIndex((prev) => (prev + 1) % targetDevices.length);
-    }, 2500);
-    return () => clearInterval(timer);
-  }, []);
-
-  const currentDevice = targetDevices[deviceIndex];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-accent/20 selection:text-foreground">
@@ -56,7 +44,7 @@ export default function Home() {
               href="#features"
               className="hidden text-sm font-medium text-muted transition hover:text-foreground md:inline-block"
             >
-              Features
+              Why CopySync
             </Link>
             <Link
               href="/guest"
@@ -70,7 +58,7 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-12 sm:py-24">
+      <section className="relative overflow-hidden py-10 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-8">
           <div className="mx-auto max-w-3xl text-center">
             {/* Category Pill */}
@@ -84,7 +72,7 @@ export default function Home() {
               <span>Instant Cross-Device Clipboard & Notes</span>
             </motion.div>
 
-            {/* Main Headline with Animated Rotating Device */}
+            {/* Main Headline - Clear, Grounded & Authentic (No AI rotating gimmicks) */}
             <motion.h1
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -92,23 +80,7 @@ export default function Home() {
               className="mt-6 text-3xl font-semibold tracking-tight sm:text-5xl lg:text-6xl text-foreground text-balance"
             >
               Copy on your phone. <br className="hidden sm:inline" />
-              <span className="text-accent inline-flex flex-wrap items-baseline justify-center">
-                <span>Paste on your&nbsp;</span>
-                <span className="relative inline-flex overflow-hidden py-1">
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={currentDevice}
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -18 }}
-                      transition={{ duration: 0.35, ease: "easeOut" }}
-                      className="inline-block text-accent font-semibold underline decoration-accent/35 decoration-wavy underline-offset-8"
-                    >
-                      {currentDevice}
-                    </motion.span>
-                  </AnimatePresence>
-                </span>
-              </span>
+              <span className="text-accent">Paste on your computer.</span>
             </motion.h1>
 
             {/* Subheading */}
@@ -116,10 +88,10 @@ export default function Home() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.16 }}
-              className="mt-6 text-lg sm:text-xl leading-relaxed text-muted text-balance"
+              className="mt-5 text-base sm:text-lg leading-relaxed text-muted text-balance max-w-2xl mx-auto"
             >
               Stop messaging links, 2FA codes, and snippets to yourself on chat apps. 
-              Scan a fast QR code for instant guest clipboard sync, or sign in to keep permanent notes organized everywhere.
+              Scan a quick QR code for instant guest clipboard sync, or sign in to save organized notes everywhere.
             </motion.p>
 
             {/* Call To Action Buttons */}
@@ -127,13 +99,13 @@ export default function Home() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.24 }}
-              className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5"
+              className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3"
             >
               <Link href="/guest" className="w-full sm:w-auto">
                 <ShimmerButton className="w-full sm:w-auto">
-                  <QrCode size={18} />
+                  <QrCode size={17} />
                   <span>Start Instant Sync (No Login)</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={15} />
                 </ShimmerButton>
               </Link>
 
@@ -141,7 +113,7 @@ export default function Home() {
                 href="/login"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 py-3 text-sm font-medium text-foreground shadow-2xs transition hover:bg-cream/60 active:scale-[0.98]"
               >
-                <FileText size={17} className="text-muted" />
+                <FileText size={16} className="text-muted" />
                 <span>Open Notes Workspace</span>
               </Link>
             </motion.div>
@@ -151,26 +123,26 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.32 }}
-              className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-muted"
+              className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-muted"
             >
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-accent" /> Zero app install
+                <CheckCircle2 size={13} className="text-accent" /> Zero app install
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-accent" /> No registration required for guest
+                <CheckCircle2 size={13} className="text-accent" /> No sign-up required
               </span>
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-accent" /> Automatic session wipe
+                <CheckCircle2 size={13} className="text-accent" /> Automatic session wipe
               </span>
             </motion.div>
           </div>
 
           {/* Product Showcase Visual (Interactive Real-Time Motion Simulation) */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.35, ease: "easeOut" }}
-            className="mt-12 sm:mt-18 w-full max-w-full"
+            transition={{ duration: 0.5, delay: 0.35, ease: "easeOut" }}
+            className="mt-10 sm:mt-16 w-full max-w-full"
           >
             <HeroSyncShowcase />
           </motion.div>
@@ -178,139 +150,112 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="border-t border-border/80 bg-white py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-6 sm:px-8">
+      <section id="how-it-works" className="border-t border-border/80 bg-white py-14 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-accent">Frictionless Workflow</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            <p className="text-xs font-semibold uppercase tracking-wider text-accent">How it works</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               Sync in three simple steps
             </h2>
-            <p className="mt-4 text-base text-muted">
-              No apps to download. No account verification emails. Just quick utility when you need it.
+            <p className="mt-3 text-sm sm:text-base text-muted">
+              No apps to download. No account verification emails. Just instant utility when you need it.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+          <div className="mt-10 grid gap-5 sm:grid-cols-3">
             {/* Step 1 */}
-            <motion.div 
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-              className="rounded-xl border border-border bg-background p-6 shadow-2xs transition hover:border-accent/40"
-            >
-              <span className="grid size-9 place-items-center rounded-lg bg-cream font-semibold text-accent text-sm">
+            <div className="rounded-xl border border-border bg-background p-5 sm:p-6 shadow-2xs">
+              <span className="grid size-8 place-items-center rounded-lg bg-cream font-semibold text-accent text-xs">
                 01
               </span>
-              <h3 className="mt-4 text-base font-semibold text-foreground">Open on your computer</h3>
+              <h3 className="mt-3.5 text-base font-semibold text-foreground">Open on computer</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 Visit CopySync and click &quot;Guest Sync&quot;. A temporary, private QR code is generated right on your screen.
               </p>
-            </motion.div>
+            </div>
 
             {/* Step 2 */}
-            <motion.div 
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-              className="rounded-xl border border-border bg-background p-6 shadow-2xs transition hover:border-accent/40"
-            >
-              <span className="grid size-9 place-items-center rounded-lg bg-cream font-semibold text-accent text-sm">
+            <div className="rounded-xl border border-border bg-background p-5 sm:p-6 shadow-2xs">
+              <span className="grid size-8 place-items-center rounded-lg bg-cream font-semibold text-accent text-xs">
                 02
               </span>
-              <h3 className="mt-4 text-base font-semibold text-foreground">Scan with your phone</h3>
+              <h3 className="mt-3.5 text-base font-semibold text-foreground">Scan with phone</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                Point your phone camera at the code. You will land directly on a lightweight web interface paired directly to your machine.
+                Point your phone camera at the code. You land directly on a lightweight web page paired to your computer.
               </p>
-            </motion.div>
+            </div>
 
             {/* Step 3 */}
-            <motion.div 
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-              className="rounded-xl border border-border bg-background p-6 shadow-2xs transition hover:border-accent/40"
-            >
-              <span className="grid size-9 place-items-center rounded-lg bg-cream font-semibold text-accent text-sm">
+            <div className="rounded-xl border border-border bg-background p-5 sm:p-6 shadow-2xs">
+              <span className="grid size-8 place-items-center rounded-lg bg-cream font-semibold text-accent text-xs">
                 03
               </span>
-              <h3 className="mt-4 text-base font-semibold text-foreground">Copy & paste freely</h3>
+              <h3 className="mt-3.5 text-base font-semibold text-foreground">Copy & paste freely</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                Text copied on your phone transmits directly to your laptop clipboard. Close the tab when finished and the session clears.
+                Text copied on your phone transmits directly to your computer clipboard. Close the tab when finished to clear the session.
               </p>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Feature Value Grid */}
-      <section id="features" className="py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-6 sm:px-8">
+      <section id="features" className="py-14 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-accent">Thoughtfully Designed</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Everything you need, nothing you don&apos;t
+            <p className="text-xs font-semibold uppercase tracking-wider text-accent">Why CopySync</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              Private, fast, and zero trace
             </h2>
           </div>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            <motion.div 
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-              className="flex flex-col justify-between rounded-xl border border-border bg-card p-6 shadow-2xs transition hover:border-accent/40"
-            >
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            <div className="flex flex-col justify-between rounded-xl border border-border bg-card p-5 sm:p-6 shadow-2xs">
               <div>
-                <span className="grid size-10 place-items-center rounded-lg bg-cream text-accent">
-                  <Zap size={20} />
+                <span className="grid size-9 place-items-center rounded-lg bg-cream text-accent">
+                  <Zap size={18} />
                 </span>
-                <h3 className="mt-4 text-base font-semibold text-foreground">Instant Transmission</h3>
+                <h3 className="mt-3.5 text-base font-semibold text-foreground">Instant Transmission</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">
-                  Built on direct real-time connections so copied links, text snippets, and notes transfer in milliseconds.
+                  Direct real-time connections transfer copied links, OTP codes, and text snippets in milliseconds.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 text-xs font-medium text-accent">
-                Fast & lightweight
-              </div>
-            </motion.div>
+            </div>
 
-            <motion.div 
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-              className="flex flex-col justify-between rounded-xl border border-border bg-card p-6 shadow-2xs transition hover:border-accent/40"
-            >
+            <div className="flex flex-col justify-between rounded-xl border border-border bg-card p-5 sm:p-6 shadow-2xs">
               <div>
-                <span className="grid size-10 place-items-center rounded-lg bg-cream text-accent">
-                  <ShieldCheck size={20} />
+                <span className="grid size-9 place-items-center rounded-lg bg-cream text-accent">
+                  <ShieldCheck size={18} />
                 </span>
-                <h3 className="mt-4 text-base font-semibold text-foreground">Private & Ephemeral</h3>
+                <h3 className="mt-3.5 text-base font-semibold text-foreground">Ephemeral & In-Memory</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">
                   Guest pairing links exactly one phone with one browser. Sessions automatically expire after 5 minutes of inactivity.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 text-xs font-medium text-accent">
-                Zero data persistence
-              </div>
-            </motion.div>
+            </div>
 
-            <motion.div 
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-              className="flex flex-col justify-between rounded-xl border border-border bg-card p-6 shadow-2xs transition hover:border-accent/40"
-            >
+            <div className="flex flex-col justify-between rounded-xl border border-border bg-card p-5 sm:p-6 shadow-2xs">
               <div>
-                <span className="grid size-10 place-items-center rounded-lg bg-cream text-accent">
-                  <Sparkles size={20} />
+                <span className="grid size-9 place-items-center rounded-lg bg-cream text-accent">
+                  <Sparkles size={18} />
                 </span>
-                <h3 className="mt-4 text-base font-semibold text-foreground">Calm Notes Workspace</h3>
+                <h3 className="mt-3.5 text-base font-semibold text-foreground">Calm Notes Workspace</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">
-                  Need permanent thoughts? Sign in with your Google account to access a clean markdown editor with image upload and instant search.
+                  Sign in with Google whenever you need persistent rich-text notes with images, formatting, and auto-saving everywhere.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 text-xs font-medium text-accent">
-                Rich text & auto-saving
-              </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Clean Call To Action Strip */}
-      <section className="border-t border-border/80 bg-white py-16 sm:py-20">
-        <div className="mx-auto max-w-4xl px-6 text-center sm:px-8">
+      <section className="border-t border-border/80 bg-white py-14 sm:py-18">
+        <div className="mx-auto max-w-4xl px-4 text-center sm:px-8">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Start moving clipboard text in seconds
           </h2>
-          <p className="mt-3 text-base text-muted">
+          <p className="mt-2.5 text-sm sm:text-base text-muted">
             No password or card required. Ready immediately in your web browser.
           </p>
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -340,7 +285,7 @@ export default function Home() {
 
       {/* Professional Minimal Footer */}
       <footer className="mt-auto border-t border-border/80 bg-background py-8 text-sm text-muted">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-8">
           <div className="flex items-center gap-2">
             <span className="grid size-6 place-items-center rounded-md bg-accent text-white">
               <Clipboard size={13} />

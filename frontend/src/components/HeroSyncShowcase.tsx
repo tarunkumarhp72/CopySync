@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { motion } from "motion/react";
 import {
   Smartphone,
-  Laptop,
+  Monitor,
   Zap,
   ArrowRight,
   Check,
@@ -32,7 +32,7 @@ const EXAMPLES: SimpleExample[] = [
     sourceApp: "SMS Messages",
     value: "849 210",
     shortValue: "849 210",
-    targetApp: "Laptop Login",
+    targetApp: "Desktop Login",
   },
   {
     id: "link",
@@ -40,7 +40,7 @@ const EXAMPLES: SimpleExample[] = [
     sourceApp: "Mobile Browser",
     value: "figma.com/design/app",
     shortValue: "figma.com/design",
-    targetApp: "Chrome on Laptop",
+    targetApp: "Chrome on Desktop",
   },
   {
     id: "address",
@@ -48,7 +48,7 @@ const EXAMPLES: SimpleExample[] = [
     sourceApp: "WhatsApp / Notes",
     value: "Meeting at 4:30 PM",
     shortValue: "Meeting at 4:30 PM",
-    targetApp: "Slack on Laptop",
+    targetApp: "Slack on Desktop",
   },
 ];
 
@@ -308,82 +308,90 @@ export function HeroSyncShowcase() {
               </div>
             </div>
 
-            {/* DEVICE 2: LAPTOP (RIGHT) */}
-            <div className="flex-1 min-w-0 max-w-[155px] sm:max-w-[260px] md:max-w-[280px] flex flex-col items-center">
-              {/* Laptop Frame */}
-              <div className="w-full rounded-[1.25rem] sm:rounded-[2rem] border-2 sm:border-[3px] border-stone-300 bg-stone-100 p-1 sm:p-2 shadow-xl">
-                <div className="relative overflow-hidden rounded-[1rem] sm:rounded-[1.65rem] bg-white border border-stone-200 flex flex-col h-[210px] sm:h-[260px]">
-                  
-                  {/* Laptop Window Header (macOS Dots) */}
-                  <div className="h-5 sm:h-6 px-2 sm:px-3 pt-0.5 flex items-center justify-between text-[9px] sm:text-[10px] font-bold text-stone-600 bg-stone-50 border-b border-stone-100">
-                    <div className="flex items-center gap-1">
-                      <span className="size-1.5 sm:size-2 rounded-full bg-red-400" />
-                      <span className="size-1.5 sm:size-2 rounded-full bg-amber-400" />
-                      <span className="size-1.5 sm:size-2 rounded-full bg-emerald-400" />
+            {/* DEVICE 2: DESKTOP MONITOR (RIGHT) */}
+            <div className="flex-1 min-w-0 max-w-[165px] sm:max-w-[280px] md:max-w-[310px] flex flex-col items-center">
+              {/* Desktop Monitor Shell */}
+              <div className="w-full flex flex-col items-center">
+                {/* Monitor Display Screen */}
+                <div className="w-full rounded-xl sm:rounded-2xl border-2 sm:border-[3px] border-stone-800 bg-stone-900 p-1 sm:p-1.5 shadow-xl">
+                  <div className="relative overflow-hidden rounded-lg sm:rounded-xl bg-white border border-stone-200 flex flex-col h-[170px] sm:h-[215px]">
+                    
+                    {/* Desktop Window Header (macOS Traffic Lights) */}
+                    <div className="h-4 sm:h-5 px-1.5 sm:px-2.5 flex items-center justify-between text-[8px] sm:text-[9px] font-bold text-stone-500 bg-stone-100 border-b border-stone-200">
+                      <div className="flex items-center gap-[3px] sm:gap-1">
+                        <span className="size-[5px] sm:size-[7px] rounded-full bg-red-400" />
+                        <span className="size-[5px] sm:size-[7px] rounded-full bg-amber-400" />
+                        <span className="size-[5px] sm:size-[7px] rounded-full bg-emerald-400" />
+                      </div>
+                      <span className="text-[7px] sm:text-[9px] font-mono text-stone-400 truncate">
+                        copysync.app
+                      </span>
+                      <Lock size={8} className="text-stone-400" />
                     </div>
-                    <span className="text-[9px] font-mono text-stone-400 truncate max-w-[60px] sm:max-w-none">
-                      Laptop
-                    </span>
-                    <Lock size={9} className="text-stone-400" />
-                  </div>
 
-                  {/* Laptop Header */}
-                  <div className="px-2 py-1 sm:py-1.5 bg-stone-50/80 border-b border-stone-100 flex items-center justify-between">
-                    <span className="text-[9px] sm:text-[10px] font-bold text-stone-800">
-                      {current.targetApp}
-                    </span>
-                    <span className="text-[8px] sm:text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
-                      Live
-                    </span>
-                  </div>
+                    {/* Desktop App Header */}
+                    <div className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-stone-50/80 border-b border-stone-100 flex items-center justify-between">
+                      <span className="text-[8px] sm:text-[10px] font-bold text-stone-800 truncate">
+                        {current.targetApp}
+                      </span>
+                      <span className="text-[7px] sm:text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 sm:px-1.5 py-px rounded">
+                        Live
+                      </span>
+                    </div>
 
-                  {/* Laptop Content */}
-                  <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="text-[9px] sm:text-[10px] uppercase font-bold text-stone-400">
-                        Received on Laptop:
+                    {/* Desktop Screen Content */}
+                    <div className="p-1.5 sm:p-2.5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="text-[7px] sm:text-[9px] uppercase font-bold text-stone-400">
+                          Received on Desktop:
+                        </div>
+
+                        {/* Received Value Box */}
+                        <motion.div
+                          animate={
+                            stage === "received"
+                              ? { scale: [1, 1.03, 1], borderColor: ["#e7e5e4", "#10b981", "#e7e5e4"] }
+                              : {}
+                          }
+                          transition={{ duration: 0.4 }}
+                          className={`mt-1 sm:mt-1.5 rounded-md sm:rounded-lg border p-1 sm:p-2 text-center transition-all ${
+                            stage === "received"
+                              ? "bg-emerald-50/70 border-emerald-300 ring-1 sm:ring-2 ring-emerald-200"
+                              : "bg-stone-50 border-stone-200 opacity-60"
+                          }`}
+                        >
+                          <span className="block font-mono text-[9px] sm:text-xs md:text-sm font-bold text-stone-900 truncate">
+                            {current.value}
+                          </span>
+                        </motion.div>
                       </div>
 
-                      {/* Received Value Box */}
-                      <motion.div
-                        animate={
-                          stage === "received"
-                            ? { scale: [1, 1.03, 1], borderColor: ["#e7e5e4", "#10b981", "#e7e5e4"] }
-                            : {}
-                        }
-                        transition={{ duration: 0.4 }}
-                        className={`mt-1.5 sm:mt-2 rounded-lg sm:rounded-xl border p-1.5 sm:p-2.5 text-center transition-all ${
-                          stage === "received"
-                            ? "bg-emerald-50/70 border-emerald-300 ring-2 ring-emerald-200"
-                            : "bg-stone-50 border-stone-200 opacity-60"
-                        }`}
-                      >
-                        <span className="block font-mono text-[11px] sm:text-xs md:text-sm font-bold text-stone-900 truncate">
-                          {current.value}
-                        </span>
-                      </motion.div>
-                    </div>
-
-                    {/* Paste Feedback Badge */}
-                    <div className="mt-auto">
-                      <div
-                        className={`w-full py-1.5 sm:py-2 px-1 rounded-lg sm:rounded-xl flex items-center justify-center gap-1 text-[10px] sm:text-xs font-bold transition-all ${
-                          stage === "received"
-                            ? "bg-emerald-600 text-white shadow-xs"
-                            : "bg-stone-100 text-stone-400"
-                        }`}
-                      >
-                        <CheckCircle2 size={11} strokeWidth={2.5} />
-                        <span>Ctrl + V Ready!</span>
+                      {/* Paste Feedback Badge */}
+                      <div className="mt-auto">
+                        <div
+                          className={`w-full py-1 sm:py-1.5 px-1 rounded-md sm:rounded-lg flex items-center justify-center gap-1 text-[8px] sm:text-[10px] font-bold transition-all ${
+                            stage === "received"
+                              ? "bg-emerald-600 text-white shadow-xs"
+                              : "bg-stone-100 text-stone-400"
+                          }`}
+                        >
+                          <CheckCircle2 size={10} strokeWidth={2.5} />
+                          <span>Ctrl + V Ready!</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Monitor Stand Neck */}
+                <div className="w-6 sm:w-10 h-2.5 sm:h-3.5 bg-gradient-to-b from-stone-400 via-stone-300 to-stone-400 border-x border-stone-400 shadow-inner" />
+                {/* Monitor Stand Base Foot */}
+                <div className="w-16 sm:w-28 h-1 sm:h-1.5 bg-gradient-to-r from-stone-400 via-stone-300 to-stone-400 rounded-full shadow-md border border-stone-400/90" />
               </div>
 
               {/* Caption */}
               <div className="mt-2 text-center">
-                <div className="text-[10px] sm:text-xs font-bold text-stone-800">2. Ready on Laptop</div>
+                <div className="text-[10px] sm:text-xs font-bold text-stone-800">2. Ready on Desktop</div>
                 <div className="text-[9px] sm:text-[10px] text-stone-500">Just press Ctrl+V</div>
               </div>
             </div>
@@ -426,14 +434,14 @@ export function HeroSyncShowcase() {
               <span className="text-[9px] sm:text-[10px] font-bold text-accent mt-1">Live Mirror</span>
             </div>
 
-            {/* Laptop Note Canvas */}
+            {/* Desktop Note Canvas */}
             <div className="flex-1 min-w-0 max-w-[155px] sm:max-w-[260px] md:max-w-[280px]">
               <div className="rounded-xl sm:rounded-2xl border border-stone-200 bg-white p-2.5 sm:p-4 shadow-sm h-[190px] sm:h-[220px] flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between border-b border-stone-100 pb-1.5 mb-2">
                     <span className="text-[10px] sm:text-xs font-bold text-stone-800 flex items-center gap-1">
-                      <Laptop size={12} className="text-accent" />
-                      <span>Laptop Workspace</span>
+                      <Monitor size={12} className="text-accent" />
+                      <span>Desktop Workspace</span>
                     </span>
                     <span className="text-[9px] text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded font-mono">
                       Auto-saved
@@ -449,7 +457,7 @@ export function HeroSyncShowcase() {
                   </div>
                 </div>
                 <div className="text-[9px] text-stone-400 text-center border-t border-stone-100 pt-1">
-                  2. Appears on laptop
+                  2. Appears on desktop
                 </div>
               </div>
             </div>
@@ -460,7 +468,7 @@ export function HeroSyncShowcase() {
       {/* 4. Simple Bottom Summary Tag */}
       <div className="mt-4 pt-3 border-t border-stone-200/80 flex items-center justify-center text-center">
         <p className="text-[11px] sm:text-xs text-stone-600 font-medium">
-          💡 <span className="font-semibold text-stone-900">No messaging apps needed.</span> Whatever you copy on phone is already on your laptop clipboard!
+          💡 <span className="font-semibold text-stone-900">No messaging apps needed.</span> Whatever you copy on phone is already on your desktop clipboard!
         </p>
       </div>
     </div>

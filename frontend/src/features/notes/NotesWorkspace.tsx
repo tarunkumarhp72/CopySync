@@ -103,6 +103,7 @@ export function NotesWorkspace({
     title: string;
     description: string;
     confirmText: string;
+    cancelText?: string;
     variant: "danger" | "warning";
     isLoading: boolean;
     onConfirm: () => void | Promise<void>;
@@ -111,6 +112,7 @@ export function NotesWorkspace({
     title: "",
     description: "",
     confirmText: "Confirm",
+    cancelText: "Cancel",
     variant: "danger",
     isLoading: false,
     onConfirm: () => {},
@@ -128,6 +130,7 @@ export function NotesWorkspace({
   // Counter to force TipTap to accept external content updates without triggering onChange loop
   const externalContentVersion = useRef(0);
   const wsBroadcastTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const isLeavingApprovedRef = useRef(false);
 
   // Check guest state from prop or local storage
   useEffect(() => {
@@ -167,22 +170,111 @@ export function NotesWorkspace({
     return () => clearInterval(interval);
   }, [isGuest]);
 
-  // Prompt user before closing tab or browser when in guest pairing mode
+  // Confirmation Dialog when user tries to navigate back or leave the page
+  const promptLeaveSession = useCallback(() => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "Leave site & close sync?",
+      description:
+        "Are you sure you want to leave this page? Leaving will close the sync connection on both this computer and your paired phone.",
+      confirmText: "Leave & Close Connection",
+      cancelText: "Stay on Page",
+      variant: "danger",
+      isLoading: false,
+      onConfirm: async () => {
+        isLeavingApprovedRef.current = true;
+        setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
+        try {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            try {
+              wsRef.current.send(JSON.stringify({ type: "session.closed" }));
+            } catch {}
+            wsRef.current.close();
+            wsRef.current = null;
+          }
+
+          const api = process.env.NEXT_PROD_API_URL;
+          const effectiveSessionId =
+            guestSessionId ||
+            (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_id") : null);
+          const effectiveToken =
+            guestToken ||
+            (typeof window !== "undefined" ? localStorage.getItem("copysync_guest_session_token") : null);
+
+          if (effectiveSessionId && effectiveToken && api) {
+            try {
+              await fetch(`${api}/guest/session/${effectiveSessionId}?token=${encodeURIComponent(effectiveToken)}`, {
+                method: "DELETE",
+                keepalive: true,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: effectiveToken }),
+              }).catch(() => {});
+            } catch {}
+          }
+
+          try {
+            await apiFetch<void>("/guest-workspace", { method: "DELETE" }).catch(() => {});
+          } catch {}
+        } finally {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("copysync_guest_token");
+            localStorage.removeItem("copysync_guest_session_id");
+            localStorage.removeItem("copysync_guest_session_token");
+            localStorage.removeItem("copysync_guest_expires_at");
+          }
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          if (onEndGuestSession) {
+            onEndGuestSession();
+          } else {
+            window.location.replace("/");
+          }
+        }
+      },
+    });
+  }, [guestSessionId, guestToken, onEndGuestSession]);
+
+  // Intercept browser back button (popstate) & tab leave when in active guest / paired session
   useEffect(() => {
-    if (!isGuest || isConnectionLost) return;
+    if (typeof window === "undefined") return;
+    const hasGuestSession = Boolean(
+      isGuest ||
+      localStorage.getItem("copysync_guest_session_id") ||
+      localStorage.getItem("copysync_guest_token")
+    );
+    if (!hasGuestSession || isConnectionLost) return;
+
+    // Push guard history entry so browser Back button fires popstate without immediately navigating away
+    try {
+      window.history.pushState({ guard: "copysync-session" }, "", window.location.href);
+    } catch {}
+
+    const handlePopState = () => {
+      if (isLeavingApprovedRef.current) return;
+
+      // Keep user on the page by re-pushing the history state
+      try {
+        window.history.pushState({ guard: "copysync-session" }, "", window.location.href);
+      } catch {}
+
+      promptLeaveSession();
+    };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLeavingApprovedRef.current) return;
       e.preventDefault();
       // Modern browsers display their standard confirmation dialog ("Leave site? Changes you make may not be saved.")
       e.returnValue = "";
       return "";
     };
 
+    window.addEventListener("popstate", handlePopState);
     window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
+      window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [isGuest, isConnectionLost]);
+  }, [isGuest, isConnectionLost, promptLeaveSession]);
 
   // When desktop tab is unloaded / closed, send keepalive teardown beacon so session ends on both sides
   useEffect(() => {
@@ -723,6 +815,7 @@ export function NotesWorkspace({
       variant: "danger",
       isLoading: false,
       onConfirm: async () => {
+        isLeavingApprovedRef.current = true;
         setConfirmConfig((prev) => ({ ...prev, isLoading: true }));
         setIsEndingSession(true);
         try {
@@ -750,6 +843,7 @@ export function NotesWorkspace({
             localStorage.removeItem("copysync_guest_token");
             localStorage.removeItem("copysync_guest_session_id");
             localStorage.removeItem("copysync_guest_session_token");
+            localStorage.removeItem("copysync_guest_expires_at");
           }
           setConfirmConfig((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           if (onEndGuestSession) {
@@ -1286,6 +1380,7 @@ export function NotesWorkspace({
         title={confirmConfig.title}
         description={confirmConfig.description}
         confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
         variant={confirmConfig.variant}
         isLoading={confirmConfig.isLoading}
         onConfirm={confirmConfig.onConfirm}

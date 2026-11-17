@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
 import { ProfessionalQRCode } from "@/components/ui/ProfessionalQRCode";
 import { getOrCreateDeviceId } from "@/features/presence/deviceId";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 type GuestSession = { id: string; token: string; status: string; expires_at: string };
 
@@ -29,6 +30,9 @@ export default function GuestPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [viewState, setViewState] = useState<"waiting" | "connected-anim" | "workspace">("waiting");
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const isLeavingApprovedRef = useRef(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const needsTurnstile = Boolean(process.env.NEXT_PROD_TURNSTILE_SITE_KEY);
@@ -148,6 +152,87 @@ export default function GuestPage() {
     };
   }, [session, router]);
 
+  const handleConfirmLeave = async () => {
+    isLeavingApprovedRef.current = true;
+    setIsLeaving(true);
+    try {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify({ type: "session.closed" }));
+        } catch {}
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (session && api) {
+        try {
+          await fetch(`${api}/guest/session/${session.id}?token=${encodeURIComponent(session.token)}`, {
+            method: "DELETE",
+            keepalive: true,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: session.token }),
+          }).catch(() => {});
+        } catch {}
+      }
+      if (api) {
+        try {
+          await fetch(`${api}/guest-workspace`, {
+            method: "DELETE",
+            credentials: "include",
+          }).catch(() => {});
+        } catch {}
+      }
+    } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("copysync_guest_token");
+        localStorage.removeItem("copysync_guest_session_id");
+        localStorage.removeItem("copysync_guest_session_token");
+        localStorage.removeItem("copysync_guest_expires_at");
+      }
+      setIsLeaving(false);
+      setShowLeaveModal(false);
+      window.location.replace("/");
+    }
+  };
+
+  // Guard browser back button and tab close when guest pairing session is active
+  useEffect(() => {
+    if (!session || viewState !== "waiting") return;
+
+    try {
+      window.history.pushState({ guard: "copysync-guest" }, "", window.location.href);
+    } catch {}
+
+    const handlePopState = () => {
+      if (isLeavingApprovedRef.current) return;
+      try {
+        window.history.pushState({ guard: "copysync-guest" }, "", window.location.href);
+      } catch {}
+      setShowLeaveModal(true);
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLeavingApprovedRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [session, viewState]);
+
+  const handleNavHome = (e: React.MouseEvent) => {
+    if (session && viewState === "waiting") {
+      e.preventDefault();
+      setShowLeaveModal(true);
+    }
+  };
+
   const url = useMemo(
     () => session && `${window.location.origin}/connect?token=${encodeURIComponent(session.token)}`,
     [session]
@@ -158,7 +243,11 @@ export default function GuestPage() {
       {/* Header */}
       <header className="border-b border-border/80 bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6 sm:px-8">
-          <Link href="/" className="flex items-center gap-2.5 font-medium tracking-tight text-foreground">
+          <Link
+            href="/"
+            onClick={handleNavHome}
+            className="flex items-center gap-2.5 font-medium tracking-tight text-foreground"
+          >
             <span className="grid size-8 place-items-center rounded-lg bg-accent text-white shadow-xs">
               <Clipboard size={17} strokeWidth={2.2} />
             </span>
@@ -166,6 +255,7 @@ export default function GuestPage() {
           </Link>
           <Link
             href="/"
+            onClick={handleNavHome}
             className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted transition hover:text-foreground"
           >
             <ArrowLeft size={15} />
@@ -371,6 +461,19 @@ export default function GuestPage() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Confirmation Modal before leaving guest setup */}
+      <ConfirmModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        onConfirm={handleConfirmLeave}
+        title="Leave guest setup & close sync?"
+        description="Leaving this page will cancel your temporary guest pairing session on both devices."
+        confirmText="Leave & Close Session"
+        cancelText="Stay Here"
+        variant="danger"
+        isLoading={isLeaving}
+      />
     </div>
   );
 }

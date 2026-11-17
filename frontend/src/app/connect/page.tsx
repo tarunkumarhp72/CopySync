@@ -100,6 +100,7 @@ function ConnectContent() {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const senderLeftTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
+  const isLeavingApprovedRef = useRef(false);
 
   // Broadcast clipboard updates to WebSocket
   const sendUpdate = (text: string) => {
@@ -354,18 +355,34 @@ function ConnectContent() {
     };
   }, [token, editor]);
 
-  // Prompt user before leaving or closing mobile tab
+  // Guard mobile back button, swipe back, and tab close while connected
   useEffect(() => {
     if (status !== "connected") return;
 
+    try {
+      window.history.pushState({ guard: "copysync-mobile" }, "", window.location.href);
+    } catch {}
+
+    const handlePopState = () => {
+      if (isLeavingApprovedRef.current) return;
+      try {
+        window.history.pushState({ guard: "copysync-mobile" }, "", window.location.href);
+      } catch {}
+      setShowDisconnectConfirm(true);
+    };
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLeavingApprovedRef.current) return;
       e.preventDefault();
       e.returnValue = "";
       return "";
     };
 
+    window.addEventListener("popstate", handlePopState);
     window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
+      window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [status]);
@@ -561,6 +578,7 @@ function ConnectContent() {
   };
 
   const confirmAndDisconnect = async () => {
+    isLeavingApprovedRef.current = true;
     setIsDisconnecting(true);
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

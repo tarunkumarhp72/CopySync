@@ -5,21 +5,18 @@ import Link from "next/link";
 import { 
   Clipboard, 
   ArrowRight, 
-  Smartphone, 
-  Laptop, 
-  Monitor,
   ShieldCheck, 
   Zap, 
   FileText, 
   CheckCircle2, 
-  Sparkles,
-  QrCode,
-  Loader2,
+  Sparkles, 
+  QrCode, 
+  Loader2, 
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShimmerButton } from "@/components/ui/ShimmerButton";
-import { InteractiveCopyPill } from "@/components/ui/InteractiveCopyPill";
 import { HeaderAuthStatus } from "@/components/HeaderAuthStatus";
+import { HeroSyncShowcase } from "@/components/HeroSyncShowcase";
 
 const targetDevices = ["laptop.", "desktop."];
 
@@ -35,7 +32,6 @@ export default function Home() {
   }, []);
 
   const currentDevice = targetDevices[deviceIndex];
-  const isDesktop = currentDevice === "desktop.";
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-accent/20 selection:text-foreground">
@@ -169,106 +165,14 @@ export default function Home() {
             </motion.div>
           </div>
 
-          {/* Product Showcase Visual (Clean, Authentic UI Preview) */}
+          {/* Product Showcase Visual (Interactive Real-Time Motion Simulation) */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.35, ease: "easeOut" }}
-            className="mt-12 sm:mt-20 w-full max-w-full overflow-hidden rounded-2xl border border-border bg-card p-1.5 sm:p-4 shadow-sm"
+            className="mt-12 sm:mt-18 w-full max-w-full"
           >
-            <div className="w-full max-w-full overflow-hidden rounded-xl border border-border/80 bg-background/50 p-3 sm:p-6 md:p-8">
-              <div className="grid w-full max-w-full gap-4 sm:gap-6 lg:grid-cols-2">
-                {/* Visual Pane 1: Instant Clipboard */}
-                <div className="flex w-full max-w-full min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-border bg-white p-4 sm:p-6 shadow-2xs">
-                  <div>
-                    <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="grid size-7 place-items-center rounded-md bg-cream text-accent">
-                          <Smartphone size={16} />
-                        </span>
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <span>Phone to</span>
-                          <AnimatePresence mode="wait">
-                            <motion.span
-                              key={isDesktop ? "desktop" : "laptop"}
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -6 }}
-                              transition={{ duration: 0.25 }}
-                              className="text-accent font-medium capitalize"
-                            >
-                              {isDesktop ? "Desktop" : "Laptop"}
-                            </motion.span>
-                          </AnimatePresence>
-                        </div>
-                      </div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-0.5 text-[11px] font-medium text-accent">
-                        <span className="size-1.5 rounded-full bg-accent animate-pulse" />
-                        Connected
-                      </span>
-                    </div>
-
-                    <div className="mt-4 space-y-3">
-                      <div className="flex items-center justify-between text-xs text-muted">
-                        <span>Recent shared clipboard:</span>
-                        <span className="text-[11px] text-accent font-medium">Click to test</span>
-                      </div>
-
-                      {/* Interactive Copy Pill from modern UI pattern */}
-                      <InteractiveCopyPill 
-                        textToCopy="https://github.com/torvalds/linux/commit/8017c6"
-                        displayText="https://github.com/torvalds/linux/commit/8017c6"
-                      />
-
-                      <p className="text-xs text-muted leading-relaxed">
-                        Tap &quot;Paste&quot; on mobile. It is already on your {isDesktop ? "desktop" : "laptop"} clipboard, ready for <kbd className="rounded border border-border bg-white px-1 py-0.5 text-[10px] font-sans">Ctrl + V</kbd>.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs text-muted">
-                    <span className="flex items-center gap-1.5">
-                      {isDesktop ? <Monitor size={14} className="text-accent" /> : <Laptop size={14} className="text-accent" />}
-                      <span>1-to-1 encrypted connection</span>
-                    </span>
-                    <span className="font-medium text-accent">Guest Mode</span>
-                  </div>
-                </div>
-
-                {/* Visual Pane 2: Cloud Notes */}
-                <div className="flex w-full max-w-full min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-border bg-white p-4 sm:p-6 shadow-2xs">
-                  <div>
-                    <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="grid size-7 place-items-center rounded-md bg-cream text-accent">
-                          <Laptop size={16} />
-                        </span>
-                        <span className="text-xs font-semibold text-foreground">Clean Notes Workspace</span>
-                      </div>
-                      <span className="rounded-md border border-border bg-cream/50 px-2 py-0.5 text-[11px] font-medium text-muted">
-                        Auto-saved
-                      </span>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <h4 className="text-sm font-semibold text-foreground">Sprint Goals & Architecture</h4>
-                      <p className="text-xs leading-relaxed text-muted">
-                        Rich text editing with bold, headings, checklists, and drag-and-drop images. Always accessible from any browser with your Google account.
-                      </p>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-muted">
-                        <span className="inline-block size-2 rounded-full bg-accent" />
-                        <span>Last edited 2 minutes ago</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs text-muted">
-                    <span>Synchronized to cloud database</span>
-                    <span className="font-medium text-foreground">Signed In</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <HeroSyncShowcase />
           </motion.div>
         </div>
       </section>

@@ -135,6 +135,69 @@ const FONT_FAMILIES = [
   { label: "Rounded (Modern)", value: "system-ui, -apple-system, 'SF Pro Rounded', 'Nunito', sans-serif", shortName: "Rounded" },
 ];
 
+/**
+ * Mobile-friendly image compressor:
+ * If an image exceeds 2MB or has dimensions > 2048px, downscales cleanly
+ * on a canvas to prevent 413 / network failures on mobile networks.
+ */
+async function compressImageIfNeeded(file: File): Promise<File> {
+  if (typeof window === "undefined" || !file.type.startsWith("image/")) {
+    return file;
+  }
+  // SVG or small images don't need canvas downscaling
+  if (file.type === "image/svg+xml" || file.size <= 2 * 1024 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxDim = 2048;
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          resolve(compressed);
+        },
+        "image/jpeg",
+        0.85
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+    img.src = objectUrl;
+  });
+}
+
 export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOpen, onRegisterSetContent }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -333,11 +396,20 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
     }
   }, [content, editor]);
 
-  const uploadImage = (file: File) => {
-    if (!file.type.startsWith("image/")) {
+  const uploadImage = async (rawFile: File) => {
+    if (!rawFile.type.startsWith("image/")) {
       onError("Please choose an image file (PNG, JPG, WebP, GIF, SVG).");
       return;
     }
+
+    // Auto-compress / scale if image is large mobile camera photo (> 2MB or large dimensions)
+    let file = rawFile;
+    try {
+      file = await compressImageIfNeeded(rawFile);
+    } catch {
+      file = rawFile;
+    }
+
     if (file.size > 5 * 1024 * 1024) {
       onError("Images must be 5 MB or smaller.");
       return;
@@ -358,6 +430,19 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
     activeXhrRef.current = xhr;
     xhr.open("POST", `${apiUrl}/uploads/images?note_id=${encodeURIComponent(noteId)}`);
     xhr.withCredentials = true;
+
+    // Attach auth token if logged-in user, or guest workspace token if guest
+    const userToken = typeof window !== "undefined" ? localStorage.getItem("copysync_token") : null;
+    const guestWsToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("copysync_guest_token") || localStorage.getItem("copysync_guest_session_token")
+        : null;
+
+    if (userToken) {
+      xhr.setRequestHeader("Authorization", `Bearer ${userToken}`);
+    } else if (guestWsToken) {
+      xhr.setRequestHeader("X-Guest-Workspace-Token", guestWsToken);
+    }
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -390,6 +475,11 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
           const parsed = JSON.parse(xhr.responseText);
           if (parsed?.detail) detail = parsed.detail;
         } catch {}
+        if (xhr.status === 401) {
+          detail = "Authentication required. Please sign in to upload images.";
+        } else if (xhr.status === 413) {
+          detail = "Image is too large. Maximum size is 5 MB.";
+        }
         onError(detail);
       }
     };
@@ -398,7 +488,7 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
       activeXhrRef.current = null;
       setUploadState(null);
       URL.revokeObjectURL(previewUrl);
-      onError("Network error during image upload.");
+      onError("Network error during image upload. Please check your connection.");
     };
 
     xhr.send(form);
@@ -562,14 +652,22 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
   };
 
   return (
-    <div className="relative mt-4 flex min-h-0 flex-1 flex-col">
+    <div className="relative mt-1 sm:mt-4 flex min-h-0 flex-1 flex-col">
       {/* ======================================================== */}
-      {/* FLOATING SELECTION BUBBLE MENU (Transparent Glassmorphism) */}
+      {/* FLOATING SELECTION BUBBLE MENU (Desktop Only)            */}
+      {/* Hidden on mobile to prevent conflicts with native Android */}
+      {/* selection toolbar and top formatting dropdown menus.     */}
       {/* ======================================================== */}
       <BubbleMenu
         editor={editor}
         tippyOptions={{ duration: 150, zIndex: 30, maxWidth: "none" }}
-        className={`flex max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-2xl border border-white/80 bg-[#FAF9F6]/85 p-2 text-stone-800 shadow-[0_20px_50px_rgba(30,28,24,0.14),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-2xl backdrop-saturate-150 ring-1 ring-black/5 transition-opacity duration-150 ${
+        shouldShow={({ editor: ed, from, to }) => {
+          if (typeof window !== "undefined" && window.innerWidth < 768) {
+            return false;
+          }
+          return from !== to && !ed.state.selection.empty;
+        }}
+        className={`hidden md:flex max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-2xl border border-white/80 bg-[#FAF9F6]/85 p-2 text-stone-800 shadow-[0_20px_50px_rgba(30,28,24,0.14),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-2xl backdrop-saturate-150 ring-1 ring-black/5 transition-opacity duration-150 ${
           isAnyTopPopoverOpen || isSidebarOpen ? "opacity-0 pointer-events-none !hidden" : "opacity-100"
         }`}
       >
@@ -1544,7 +1642,7 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/*"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -1595,11 +1693,11 @@ export function RichTextEditor({ noteId, content, onChange, onError, isSidebarOp
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleContainerDrop}
-        className={`relative mt-2 flex min-h-0 flex-1 flex-col overflow-auto rounded-xl border bg-white p-4 sm:p-6 shadow-2xs transition-colors focus-within:border-accent/40 ${
+        className={`relative mt-1.5 sm:mt-2 flex min-h-0 flex-1 flex-col overflow-auto rounded-xl border bg-white p-3 sm:p-6 shadow-2xs transition-colors focus-within:border-accent/40 ${
           isDragOver ? "border-accent ring-2 ring-accent/30 bg-accent/[0.02]" : "border-border/80"
         }`}
       >
-        <EditorContent editor={editor} className="min-h-full" />
+        <EditorContent editor={editor} className="min-h-full flex-1" />
 
         {/* Drag & Drop Visual Dropzone Overlay */}
         <AnimatePresence>

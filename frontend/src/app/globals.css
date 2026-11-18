@@ -23,12 +23,20 @@ body {
 }
 
 .rich-editor {
-  min-height: 55vh;
+  min-height: 60vh;
   flex: 1;
-  padding: 1.5rem 0;
+  padding: 0.75rem 0;
   font-size: 15px;
-  line-height: 2;
+  line-height: 1.75;
   outline: none;
+}
+
+@media (min-width: 768px) {
+  .rich-editor {
+    min-height: 55vh;
+    padding: 1.5rem 0;
+    line-height: 2;
+  }
 }
 
 .rich-editor > :first-child { margin-top: 0; }

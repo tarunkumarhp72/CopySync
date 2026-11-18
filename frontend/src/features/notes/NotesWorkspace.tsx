@@ -730,7 +730,8 @@ export function NotesWorkspace({
   const edit = (key: "title" | "content", value: string) => {
     const note = activeRef.current;
     if (!note) return;
-    const next = { ...note, [key]: value };
+    const sanitizedValue = key === "title" ? value.slice(0, 15) : value;
+    const next = { ...note, [key]: sanitizedValue };
     setActive(next);
     persist(next);
     if (key === "content") {
@@ -1150,12 +1151,13 @@ export function NotesWorkspace({
                 <Menu size={20} />
               </button>
 
-              {/* On mobile: compact title input directly in header */}
+              {/* On mobile: compact title input directly in header (strictly <= 15 chars) */}
               {active && (
                 <div className="block md:hidden flex-1 min-w-0 pr-1">
                   <input
-                    value={active.title}
+                    value={active.title || ""}
                     onChange={(event) => edit("title", event.target.value)}
+                    maxLength={15}
                     placeholder="Untitled Note"
                     className="w-full text-sm font-semibold truncate bg-transparent outline-none text-foreground border-b border-transparent focus:border-border/60 py-0.5"
                     aria-label="Note title"
@@ -1287,15 +1289,21 @@ export function NotesWorkspace({
           {!isInitialLoadDone || isLoadingActiveNote || (isGuest && (!active || isCreatingNote)) ? (
             <NoteEditorSkeleton />
           ) : active ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-12 sm:py-8">
-              {/* Desktop-only large title (on mobile it is in the top header) */}
-              <input
-                value={active.title}
-                onChange={(event) => edit("title", event.target.value)}
-                className="hidden md:block w-full text-3xl font-semibold tracking-tight outline-none text-foreground border-b border-transparent focus:border-border/60 pb-1 mb-2 transition placeholder:text-muted/60"
-                aria-label="Note title"
-                placeholder="Untitled Note"
-              />
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-1.5 sm:px-12 sm:py-8">
+              {/* Desktop-only large title with 15-character limit (on mobile it is in the top header) */}
+              <div className="hidden md:flex items-center justify-between pb-1 mb-2">
+                <input
+                  value={active.title || ""}
+                  onChange={(event) => edit("title", event.target.value)}
+                  maxLength={15}
+                  className="w-full text-3xl font-semibold tracking-tight outline-none text-foreground border-b border-transparent focus:border-border/60 transition placeholder:text-muted/60"
+                  aria-label="Note title"
+                  placeholder="Untitled Note"
+                />
+                <span className="text-[10px] text-muted shrink-0 pl-2 font-mono">
+                  {(active.title || "").length}/15
+                </span>
+              </div>
               <RichTextEditor
                 key={active.id}
                 noteId={active.id}

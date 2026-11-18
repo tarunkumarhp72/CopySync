@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   Clipboard, 
@@ -15,6 +15,7 @@ import {
   Menu,
   X
 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { HeaderAuthStatus } from "@/components/HeaderAuthStatus";
 
 interface ExampleItem {
@@ -25,6 +26,8 @@ interface ExampleItem {
   deskTitle: string;
   deskLabel: string;
 }
+
+const targetDevices = ["computer.", "desktop.", "laptop."];
 
 const EXAMPLES: ExampleItem[] = [
   {
@@ -54,8 +57,27 @@ const EXAMPLES: ExampleItem[] = [
 ];
 
 export default function Home() {
+  const [deviceIndex, setDeviceIndex] = useState(0);
   const [selectedEx, setSelectedEx] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Rotating target devices animation in headline
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDeviceIndex((prev) => (prev + 1) % targetDevices.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Auto-cycle through example chips in demo card
+  useEffect(() => {
+    const exTimer = setInterval(() => {
+      setSelectedEx((prev) => (prev + 1) % EXAMPLES.length);
+    }, 4500);
+    return () => clearInterval(exTimer);
+  }, []);
+
+  const currentDevice = targetDevices[deviceIndex];
   const cur = EXAMPLES[selectedEx];
 
   return (
@@ -149,32 +171,66 @@ export default function Home() {
 
       <main>
         {/* =========================================================================
-            HERO SECTION
+            HERO SECTION WITH MOTION ANIMATIONS
             ========================================================================= */}
         <section aria-labelledby="hero-title" className="pt-12 sm:pt-20 pb-8 px-4 sm:px-6">
           <div className="max-w-[960px] mx-auto text-center">
-            {/* Pill Badge */}
-            <p className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 border border-[#E8E4DC] rounded-md bg-white text-xs sm:text-[13px] font-medium text-[#6B6861] shadow-2xs">
-              <span className="size-1.5 rounded-full bg-[#737B5B]" />
+            {/* Category Pill with Motion */}
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 border border-[#E8E4DC] rounded-md bg-white text-xs sm:text-[13px] font-medium text-[#6B6861] shadow-2xs"
+            >
+              <span className="size-1.5 rounded-full bg-[#737B5B] animate-pulse" />
               <span>Free clipboard and notes sync for any phone and computer</span>
-            </p>
+            </motion.p>
 
-            {/* Main Headline */}
-            <h1
+            {/* Main Headline with Animated Rotating Device */}
+            <motion.h1
               id="hero-title"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.08 }}
               className="text-4xl sm:text-6xl lg:text-[68px] font-bold text-[#292824] tracking-[-0.035em] leading-[1.08] sm:leading-[1.04]"
             >
               Copy on your phone. <br />
-              <span className="text-[#737B5B]">Paste on your computer.</span>
-            </h1>
+              <span className="text-[#737B5B] inline-flex flex-wrap items-baseline justify-center">
+                <span>Paste on your&nbsp;</span>
+                <span className="relative inline-flex overflow-hidden py-1">
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={currentDevice}
+                      initial={{ opacity: 0, y: 18 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -18 }}
+                      transition={{ duration: 0.35, ease: "easeOut" }}
+                      className="inline-block text-[#737B5B] font-bold underline decoration-[#737B5B]/35 decoration-wavy underline-offset-8"
+                    >
+                      {currentDevice}
+                    </motion.span>
+                  </AnimatePresence>
+                </span>
+              </span>
+            </motion.h1>
 
-            {/* Subheading */}
-            <p className="mt-5 sm:mt-6 max-w-[620px] mx-auto text-base sm:text-lg lg:text-[19px] leading-[1.6] text-[#6B6861]">
+            {/* Subheading with Motion */}
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.16 }}
+              className="mt-5 sm:mt-6 max-w-[620px] mx-auto text-base sm:text-lg lg:text-[19px] leading-[1.6] text-[#6B6861]"
+            >
               Scan one QR code and everything you copy on your phone lands on your computer clipboard. No app to install, no account to create, nothing left behind.
-            </p>
+            </motion.p>
 
-            {/* Action Buttons */}
-            <div className="mt-8 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
+            {/* Action Buttons with Motion */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.24 }}
+              className="mt-8 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-3"
+            >
               <Link
                 href="/guest"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 min-h-[50px] sm:min-h-[52px] px-6 rounded-md bg-[#646C4D] text-white text-[15px] sm:text-base font-semibold transition hover:bg-[#52593e] active:scale-[0.98] shadow-xs"
@@ -190,10 +246,15 @@ export default function Home() {
                 <FileText size={18} />
                 <span>Open notes workspace</span>
               </Link>
-            </div>
+            </motion.div>
 
-            {/* Value bullets */}
-            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-[#6B6861] list-none p-0">
+            {/* Value bullets with Motion */}
+            <motion.ul
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.32 }}
+              className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-[#6B6861] list-none p-0"
+            >
               <li className="flex items-center gap-1.5">
                 <Check size={16} className="text-[#646C4D]" strokeWidth={2.4} />
                 <span>Zero app install</span>
@@ -206,13 +267,18 @@ export default function Home() {
                 <Check size={16} className="text-[#646C4D]" strokeWidth={2.4} />
                 <span>Session wiped automatically</span>
               </li>
-            </ul>
+            </motion.ul>
           </div>
 
           {/* =====================================================================
-              HERO INTERACTIVE DEMO (PICK SOMETHING TO COPY)
+              HERO INTERACTIVE DEMO (WITH MOTION & SMOOTH TRANSITIONS)
               ===================================================================== */}
-          <div className="max-w-[960px] mx-auto mt-10 sm:mt-14 border border-[#E8E4DC] rounded-lg bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(41,40,36,0.06)]">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.38, ease: "easeOut" }}
+            className="max-w-[960px] mx-auto mt-10 sm:mt-14 border border-[#E8E4DC] rounded-lg bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(41,40,36,0.06)]"
+          >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p className="text-xs sm:text-[13px] font-semibold tracking-wider uppercase text-[#6B6861]">
                 Try it: pick something to copy
@@ -227,9 +293,9 @@ export default function Home() {
                       type="button"
                       onClick={() => setSelectedEx(idx)}
                       aria-pressed={isActive}
-                      className={`min-h-[38px] sm:min-h-[44px] px-3.5 sm:px-4 rounded-md text-xs sm:text-sm font-semibold transition cursor-pointer ${
+                      className={`min-h-[38px] sm:min-h-[44px] px-3.5 sm:px-4 rounded-md text-xs sm:text-sm font-semibold transition cursor-pointer active:scale-95 ${
                         isActive
-                          ? "bg-[#646C4D] text-white border border-[#646C4D]"
+                          ? "bg-[#646C4D] text-white border border-[#646C4D] shadow-2xs"
                           : "bg-white text-[#292824] border border-[#E8E4DC] hover:bg-[#F2EBDD]/50"
                       }`}
                     >
@@ -249,26 +315,63 @@ export default function Home() {
                     <Smartphone size={16} className="text-[#646C4D]" />
                     <span>Your phone</span>
                   </span>
-                  <span className="font-medium">{cur.phoneApp}</span>
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={cur.phoneApp}
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      transition={{ duration: 0.2 }}
+                      className="font-medium"
+                    >
+                      {cur.phoneApp}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
                 <div className="p-4 sm:p-5 flex flex-col gap-3.5 flex-1">
-                  <p className="text-xs sm:text-sm text-[#6B6861] m-0">{cur.caption}</p>
-                  <div className="p-3.5 sm:p-4 border border-[#E8E4DC] rounded-md bg-white font-mono text-base sm:text-lg font-semibold text-[#292824] break-all select-all">
-                    {cur.value}
-                  </div>
-                  <div className="mt-auto flex items-center justify-center gap-2 min-h-[40px] sm:min-h-[44px] rounded-md bg-[#646C4D] text-white text-xs sm:text-sm font-semibold">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={cur.caption}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-xs sm:text-sm text-[#6B6861] m-0"
+                    >
+                      {cur.caption}
+                    </motion.p>
+                  </AnimatePresence>
+
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={cur.value}
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
+                      className="p-3.5 sm:p-4 border border-[#E8E4DC] rounded-md bg-white font-mono text-base sm:text-lg font-semibold text-[#292824] break-all select-all shadow-2xs"
+                    >
+                      {cur.value}
+                    </motion.div>
+                  </AnimatePresence>
+
+                  <div className="mt-auto flex items-center justify-center gap-2 min-h-[40px] sm:min-h-[44px] rounded-md bg-[#646C4D] text-white text-xs sm:text-sm font-semibold shadow-2xs">
                     <Check size={16} strokeWidth={2.4} />
                     <span>Copied</span>
                   </div>
                 </div>
               </div>
 
-              {/* Connector */}
+              {/* Connector with Live Pulse */}
               <div className="flex flex-row md:flex-col items-center justify-center gap-2 self-center py-2 md:py-0 px-1 shrink-0">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#737B5B] bg-[#F2EBDD] text-[#4F563C] text-xs sm:text-[13px] font-semibold shadow-2xs">
-                  <Zap size={14} strokeWidth={2.2} />
+                <motion.span
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#737B5B] bg-[#F2EBDD] text-[#4F563C] text-xs sm:text-[13px] font-semibold shadow-2xs"
+                >
+                  <Zap size={14} strokeWidth={2.2} className="text-[#646C4D]" />
                   <span>Synced</span>
-                </span>
+                </motion.span>
               </div>
 
               {/* Computer card */}
@@ -281,11 +384,32 @@ export default function Home() {
                   <span className="font-mono text-xs text-[#6B6861]">copysync.app</span>
                 </div>
                 <div className="p-4 sm:p-5 flex flex-col gap-2 flex-1">
-                  <p className="text-sm sm:text-base font-semibold text-[#292824] m-0">{cur.deskTitle}</p>
-                  <p className="mt-1 text-xs sm:text-[13px] text-[#6B6861] m-0">{cur.deskLabel}</p>
-                  <div className="p-3.5 sm:p-4 border border-[#737B5B] rounded-md bg-white shadow-[0_0_0_3px_rgba(115,123,91,0.18)] font-mono text-base sm:text-lg font-semibold text-[#292824] break-all select-all">
-                    {cur.value}
-                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={cur.deskTitle}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <p className="text-sm sm:text-base font-semibold text-[#292824] m-0">{cur.deskTitle}</p>
+                      <p className="mt-1 text-xs sm:text-[13px] text-[#6B6861] m-0">{cur.deskLabel}</p>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={cur.value}
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
+                      className="p-3.5 sm:p-4 border border-[#737B5B] rounded-md bg-white shadow-[0_0_0_3px_rgba(115,123,91,0.18)] font-mono text-base sm:text-lg font-semibold text-[#292824] break-all select-all"
+                    >
+                      {cur.value}
+                    </motion.div>
+                  </AnimatePresence>
+
                   <p className="mt-auto pt-3 flex items-center gap-2 text-xs sm:text-[13px] text-[#6B6861]">
                     <kbd className="px-2 py-0.5 border border-[#E8E4DC] rounded bg-[#F2EBDD] font-mono text-xs font-semibold text-[#292824]">Ctrl</kbd>
                     <span>+</span>
@@ -295,7 +419,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </section>
 
         {/* =========================================================================
@@ -308,7 +432,7 @@ export default function Home() {
         </section>
 
         {/* =========================================================================
-            HOW IT WORKS SECTION
+            HOW IT WORKS SECTION (WITH HOVER MOTION)
             ========================================================================= */}
         <section id="how-it-works" aria-labelledby="how-title" className="pt-16 sm:pt-24 pb-8 px-4 sm:px-6">
           <div className="max-w-[1160px] mx-auto">
@@ -326,7 +450,10 @@ export default function Home() {
 
             <ol className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-5 list-none p-0">
               {/* Step 1 */}
-              <li className="border border-[#E8E4DC] rounded-lg bg-white overflow-hidden flex flex-col shadow-2xs">
+              <motion.li
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="border border-[#E8E4DC] rounded-lg bg-white overflow-hidden flex flex-col shadow-2xs hover:border-[#737B5B]/50 transition-colors"
+              >
                 <div className="h-[168px] bg-[#F2EBDD] grid place-items-center">
                   <div className="w-[200px] border border-[#E8E4DC] rounded-md bg-white shadow-[0_1px_2px_rgba(41,40,36,0.06)]">
                     <div className="flex gap-1.5 p-2 border-b border-[#E8E4DC]">
@@ -376,10 +503,13 @@ export default function Home() {
                     Visit CopySync and choose Guest Sync. A private, temporary QR code appears on your screen.
                   </p>
                 </div>
-              </li>
+              </motion.li>
 
               {/* Step 2 */}
-              <li className="border border-[#E8E4DC] rounded-lg bg-white overflow-hidden flex flex-col shadow-2xs">
+              <motion.li
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="border border-[#E8E4DC] rounded-lg bg-white overflow-hidden flex flex-col shadow-2xs hover:border-[#737B5B]/50 transition-colors"
+              >
                 <div className="h-[168px] bg-[#F2EBDD] grid place-items-center">
                   <div className="relative w-[84px] h-[140px] border-2 border-[#292824] rounded-xl bg-white grid place-items-center shadow-xs">
                     <div className="size-12 border-2 border-dashed border-[#737B5B] rounded-md grid place-items-center">
@@ -397,10 +527,13 @@ export default function Home() {
                     Point your camera at the code. You land on a lightweight web page paired with your computer.
                   </p>
                 </div>
-              </li>
+              </motion.li>
 
               {/* Step 3 */}
-              <li className="border border-[#E8E4DC] rounded-lg bg-white overflow-hidden flex flex-col shadow-2xs">
+              <motion.li
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="border border-[#E8E4DC] rounded-lg bg-white overflow-hidden flex flex-col shadow-2xs hover:border-[#737B5B]/50 transition-colors"
+              >
                 <div className="h-[168px] bg-[#F2EBDD] flex items-center justify-center gap-3">
                   <div className="px-3.5 py-2.5 border border-[#E8E4DC] rounded-md bg-white font-mono text-xs sm:text-sm font-semibold">
                     482913
@@ -419,13 +552,13 @@ export default function Home() {
                     Text you copy on your phone goes straight to your computer clipboard. Close the tab to clear the session.
                   </p>
                 </div>
-              </li>
+              </motion.li>
             </ol>
           </div>
         </section>
 
         {/* =========================================================================
-            WHY COPYSYNC / FEATURES BENTO
+            WHY COPYSYNC / FEATURES BENTO (WITH HOVER MOTION)
             ========================================================================= */}
         <section id="features" aria-labelledby="features-title" className="pt-16 sm:pt-24 pb-8 px-4 sm:px-6">
           <div className="max-w-[1160px] mx-auto">
@@ -441,7 +574,10 @@ export default function Home() {
             {/* Row 1 */}
             <div className="mt-12 flex flex-col lg:flex-row gap-5">
               {/* Wide Bento Card 1 */}
-              <article className="flex-[2] min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs">
+              <motion.article
+                whileHover={{ y: -3, transition: { duration: 0.2 } }}
+                className="flex-[2] min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs hover:border-[#737B5B]/50 transition-colors"
+              >
                 <span className="grid size-10 rounded-md bg-[#F2EBDD] place-items-center text-[#4F563C]">
                   <Zap size={20} strokeWidth={2} />
                 </span>
@@ -451,10 +587,13 @@ export default function Home() {
                 <p className="mt-2.5 max-w-[520px] text-sm sm:text-base leading-[1.6] text-[#6B6861]">
                   A direct real-time connection moves copied links, one-time codes, and text snippets to your computer as you copy them. No refresh, no send button.
                 </p>
-              </article>
+              </motion.article>
 
               {/* Regular Bento Card 2 */}
-              <article className="flex-1 min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs">
+              <motion.article
+                whileHover={{ y: -3, transition: { duration: 0.2 } }}
+                className="flex-1 min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs hover:border-[#737B5B]/50 transition-colors"
+              >
                 <span className="grid size-10 rounded-md bg-[#F2EBDD] place-items-center text-[#4F563C]">
                   <ShieldCheck size={20} strokeWidth={2} />
                 </span>
@@ -464,13 +603,16 @@ export default function Home() {
                 <p className="mt-2.5 text-sm sm:text-base leading-[1.6] text-[#6B6861]">
                   A guest link pairs exactly one phone with one browser. Sessions expire after 5 minutes of inactivity.
                 </p>
-              </article>
+              </motion.article>
             </div>
 
             {/* Row 2 */}
             <div className="mt-5 flex flex-col lg:flex-row gap-5">
               {/* Regular Bento Card 3 */}
-              <article className="flex-1 min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs">
+              <motion.article
+                whileHover={{ y: -3, transition: { duration: 0.2 } }}
+                className="flex-1 min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs hover:border-[#737B5B]/50 transition-colors"
+              >
                 <span className="grid size-10 rounded-md bg-[#F2EBDD] place-items-center text-[#4F563C]">
                   <Monitor size={20} strokeWidth={2} />
                 </span>
@@ -480,10 +622,13 @@ export default function Home() {
                 <p className="mt-2.5 text-sm sm:text-base leading-[1.6] text-[#6B6861]">
                   It runs in the browser you already have, on your work PC, a borrowed laptop, or a library computer.
                 </p>
-              </article>
+              </motion.article>
 
               {/* Wide Bento Card 4 (with notes preview) */}
-              <article className="flex-[2] min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs flex flex-col md:flex-row gap-6 items-center">
+              <motion.article
+                whileHover={{ y: -3, transition: { duration: 0.2 } }}
+                className="flex-[2] min-w-0 border border-[#E8E4DC] rounded-lg bg-white p-6 sm:p-8 shadow-2xs flex flex-col md:flex-row gap-6 items-center hover:border-[#737B5B]/50 transition-colors"
+              >
                 <div className="flex-1 min-w-0">
                   <span className="grid size-10 rounded-md bg-[#F2EBDD] place-items-center text-[#4F563C]">
                     <FileText size={20} strokeWidth={2} />
@@ -514,7 +659,7 @@ export default function Home() {
                   </ul>
                   <p className="mt-3.5 text-[11px] sm:text-xs text-[#6B6861] m-0">Auto-saved</p>
                 </div>
-              </article>
+              </motion.article>
             </div>
           </div>
         </section>
@@ -580,7 +725,7 @@ export default function Home() {
         </section>
 
         {/* =========================================================================
-            USE CASES GRID
+            USE CASES GRID (WITH HOVER MOTION)
             ========================================================================= */}
         <section aria-labelledby="uses-title" className="pt-16 sm:pt-24 pb-8 px-4 sm:px-6">
           <div className="max-w-[1160px] mx-auto">
@@ -594,7 +739,7 @@ export default function Home() {
             </div>
 
             <ul className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 list-none p-0">
-              <li>
+              <motion.li whileHover={{ y: -4, transition: { duration: 0.2 } }}>
                 <Link href="/guest" className="group block h-full border border-[#E8E4DC] rounded-lg bg-white p-6 transition hover:border-[#737B5B] shadow-2xs">
                   <h3 className="text-lg font-bold text-[#292824] m-0 group-hover:text-[#646C4D] transition-colors">
                     Phone to PC clipboard
@@ -607,9 +752,9 @@ export default function Home() {
                     <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
-              </li>
+              </motion.li>
 
-              <li>
+              <motion.li whileHover={{ y: -4, transition: { duration: 0.2 } }}>
                 <Link href="/guest" className="group block h-full border border-[#E8E4DC] rounded-lg bg-white p-6 transition hover:border-[#737B5B] shadow-2xs">
                   <h3 className="text-lg font-bold text-[#292824] m-0 group-hover:text-[#646C4D] transition-colors">
                     iPhone to Windows
@@ -622,9 +767,9 @@ export default function Home() {
                     <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
-              </li>
+              </motion.li>
 
-              <li>
+              <motion.li whileHover={{ y: -4, transition: { duration: 0.2 } }}>
                 <Link href="/guest" className="group block h-full border border-[#E8E4DC] rounded-lg bg-white p-6 transition hover:border-[#737B5B] shadow-2xs">
                   <h3 className="text-lg font-bold text-[#292824] m-0 group-hover:text-[#646C4D] transition-colors">
                     Android to Mac
@@ -637,9 +782,9 @@ export default function Home() {
                     <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
-              </li>
+              </motion.li>
 
-              <li>
+              <motion.li whileHover={{ y: -4, transition: { duration: 0.2 } }}>
                 <Link href="/guest" className="group block h-full border border-[#E8E4DC] rounded-lg bg-white p-6 transition hover:border-[#737B5B] shadow-2xs">
                   <h3 className="text-lg font-bold text-[#292824] m-0 group-hover:text-[#646C4D] transition-colors">
                     2FA codes to your desktop
@@ -652,9 +797,9 @@ export default function Home() {
                     <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
-              </li>
+              </motion.li>
 
-              <li>
+              <motion.li whileHover={{ y: -4, transition: { duration: 0.2 } }}>
                 <Link href="/guest" className="group block h-full border border-[#E8E4DC] rounded-lg bg-white p-6 transition hover:border-[#737B5B] shadow-2xs">
                   <h3 className="text-lg font-bold text-[#292824] m-0 group-hover:text-[#646C4D] transition-colors">
                     Links to your laptop
@@ -667,9 +812,9 @@ export default function Home() {
                     <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
-              </li>
+              </motion.li>
 
-              <li>
+              <motion.li whileHover={{ y: -4, transition: { duration: 0.2 } }}>
                 <Link href="/notes" className="group block h-full border border-[#E8E4DC] rounded-lg bg-white p-6 transition hover:border-[#737B5B] shadow-2xs">
                   <h3 className="text-lg font-bold text-[#292824] m-0 group-hover:text-[#646C4D] transition-colors">
                     Online notes across devices
@@ -682,7 +827,7 @@ export default function Home() {
                     <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
-              </li>
+              </motion.li>
             </ul>
           </div>
         </section>
@@ -766,10 +911,13 @@ export default function Home() {
         </section>
 
         {/* =========================================================================
-            FINAL CALL TO ACTION BANNER
+            FINAL CALL TO ACTION BANNER (WITH HOVER MOTION)
             ========================================================================= */}
         <section aria-labelledby="cta-title" className="py-16 sm:py-24 px-4 sm:px-6">
-          <div className="max-w-[960px] mx-auto border border-[#EAE2D3] rounded-lg bg-[#F2EBDD] p-8 sm:p-12 md:p-16 text-center shadow-xs">
+          <motion.div
+            whileHover={{ scale: 1.005, transition: { duration: 0.2 } }}
+            className="max-w-[960px] mx-auto border border-[#EAE2D3] rounded-lg bg-[#F2EBDD] p-8 sm:p-12 md:p-16 text-center shadow-xs"
+          >
             <h2 id="cta-title" className="text-3xl sm:text-[40px] font-bold tracking-[-0.025em] leading-[1.15] text-[#292824] m-0">
               Start moving clipboard text in seconds
             </h2>
@@ -790,7 +938,7 @@ export default function Home() {
                 Sign in with Google
               </Link>
             </div>
-          </div>
+          </motion.div>
         </section>
       </main>
 

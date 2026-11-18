@@ -357,17 +357,19 @@ function ConnectContent() {
 
   // Guard mobile back button, swipe back, and tab close while connected
   useEffect(() => {
-    if (status !== "connected") return;
+    if (status === "unavailable") return;
 
-    try {
-      window.history.pushState({ guard: "copysync-mobile" }, "", window.location.href);
-    } catch {}
-
-    const handlePopState = () => {
-      if (isLeavingApprovedRef.current) return;
+    const pushGuard = () => {
       try {
         window.history.pushState({ guard: "copysync-mobile" }, "", window.location.href);
       } catch {}
+    };
+
+    pushGuard();
+
+    const handlePopState = () => {
+      if (isLeavingApprovedRef.current) return;
+      pushGuard();
       setShowDisconnectConfirm(true);
     };
 
@@ -707,9 +709,21 @@ function ConnectContent() {
       {/* 1. Apple Notes Clean Top Header */}
       <header className="shrink-0 h-12 flex items-center justify-between border-b border-border/70 bg-white/95 px-3 backdrop-blur-md z-30">
         <div className="flex items-center gap-2">
-          <Link href="/" className="grid size-7 place-items-center rounded-lg bg-accent text-white shadow-2xs">
+          <button
+            type="button"
+            onClick={() => {
+              if (status === "connected" || status === "connecting") {
+                setShowDisconnectConfirm(true);
+              } else {
+                window.location.replace("/");
+              }
+            }}
+            className="grid size-7 place-items-center rounded-lg bg-accent text-white shadow-2xs cursor-pointer"
+            title="Leave & close connection"
+            aria-label="Leave site and close connection"
+          >
             <Clipboard size={14} strokeWidth={2.3} />
-          </Link>
+          </button>
           <div className="flex flex-col leading-tight">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold tracking-tight text-foreground">CopySync</span>
@@ -1219,11 +1233,17 @@ function ConnectContent() {
       {/* Confirmation Modal before ending session */}
       <ConfirmModal
         isOpen={showDisconnectConfirm}
-        onClose={() => setShowDisconnectConfirm(false)}
+        onClose={() => {
+          setShowDisconnectConfirm(false);
+          try {
+            window.history.pushState({ guard: "copysync-mobile" }, "", window.location.href);
+          } catch {}
+        }}
         onConfirm={confirmAndDisconnect}
-        title="End pairing session?"
-        description="Your phone will disconnect from the laptop. Are you sure you want to end this session?"
-        confirmText="Disconnect"
+        title="Leave site & close sync?"
+        description="Leaving this page will disconnect your phone and close the connection on both your phone and laptop. Are you sure you want to leave?"
+        confirmText="Leave & Close Connection"
+        cancelText="Stay Connected"
         variant="danger"
         isLoading={isDisconnecting}
       />

@@ -1392,7 +1392,12 @@ export function NotesWorkspace({
         variant={confirmConfig.variant}
         isLoading={confirmConfig.isLoading}
         onConfirm={confirmConfig.onConfirm}
-        onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
+        onClose={() => {
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+          try {
+            window.history.pushState({ guard: "copysync-session" }, "", window.location.href);
+          } catch {}
+        }}
       />
     </main>
   );

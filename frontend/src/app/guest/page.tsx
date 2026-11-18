@@ -54,36 +54,39 @@ export default function GuestPage() {
     }
 
     try {
-      // Create Guest Pairing Session and Guest Workspace in PARALLEL with Promise.all (cuts load time in half)
-      const [sessionRes, workspaceRes] = await Promise.all([
-        fetch(`${api}/guest/session`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sender_connection_id: crypto.randomUUID(),
-            turnstile_token: token || undefined,
-          }),
+      // 1. Pre-warm / create guest workspace in background asynchronously
+      // (Do NOT block QR code display on workspace creation!)
+      void fetch(`${api}/guest-workspace`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          turnstile_token: token || undefined,
         }),
-        fetch(`${api}/guest-workspace`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            turnstile_token: token || undefined,
-          }),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const workspaceData = await res.json();
+            if (workspaceData?.token && typeof window !== "undefined") {
+              localStorage.setItem("copysync_guest_token", workspaceData.token);
+            }
+          }
+        })
+        .catch(() => {});
+
+      // 2. Fetch session directly - single fast call to display QR code instantly
+      const sessionRes = await fetch(`${api}/guest/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender_connection_id: crypto.randomUUID(),
+          turnstile_token: token || undefined,
         }),
-      ]);
+      });
 
       if (!sessionRes.ok) throw new Error("Could not create a connection session.");
       const sessionData = await sessionRes.json();
       setSession(sessionData);
-
-      if (workspaceRes.ok) {
-        const workspaceData = await workspaceRes.json();
-        if (workspaceData?.token && typeof window !== "undefined") {
-          localStorage.setItem("copysync_guest_token", workspaceData.token);
-        }
-      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create a connection.");
     } finally {

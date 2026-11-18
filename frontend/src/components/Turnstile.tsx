@@ -16,7 +16,28 @@ export function Turnstile({ action, onToken, onExpired }: { action: string; onTo
   useEffect(() => {
     if (!siteKey || !host.current) return;
     const render = () => {
-      if (host.current && window.turnstile && !widgetId.current) widgetId.current = window.turnstile.render(host.current, { sitekey: siteKey, action, theme: "light", callback: (token: string) => { setError(""); onToken(token); }, "expired-callback": () => { setError("Verification expired. Please try again."); onExpired(); if (widgetId.current) window.turnstile?.reset(widgetId.current); }, "error-callback": () => { setError("Verification could not load. Please retry."); onExpired(); if (widgetId.current) window.turnstile?.reset(widgetId.current); } });
+      if (host.current && window.turnstile && !widgetId.current) {
+        widgetId.current = window.turnstile.render(host.current, {
+          sitekey: siteKey,
+          action,
+          theme: "light",
+          appearance: "interaction-only",
+          callback: (token: string) => {
+            setError("");
+            onToken(token);
+          },
+          "expired-callback": () => {
+            setError("Verification expired. Please try again.");
+            onExpired();
+            if (widgetId.current) window.turnstile?.reset(widgetId.current);
+          },
+          "error-callback": () => {
+            setError("Verification could not load. Please retry.");
+            onExpired();
+            if (widgetId.current) window.turnstile?.reset(widgetId.current);
+          },
+        });
+      }
     };
     const script = document.querySelector<HTMLScriptElement>('script[data-copysync-turnstile]');
     if (window.turnstile) render();

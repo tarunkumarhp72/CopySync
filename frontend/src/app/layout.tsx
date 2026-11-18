@@ -37,6 +37,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Preconnect to API and Cloudflare to eliminate connection latency for instant QR generation */}
+        <link rel="preconnect" href="https://copy-sync.fastapicloud.dev" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://copy-sync.fastapicloud.dev" />
+        <link rel="preconnect" href="https://challenges.cloudflare.com" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://challenges.cloudflare.com" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

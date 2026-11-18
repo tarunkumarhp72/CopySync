@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -10,10 +11,15 @@ from app.modules.guest_sessions.models import GuestSession, SessionStatus
 
 async def create_session(db: AsyncSession, sender_connection_id: str | None = None) -> tuple[GuestSession, str]:
     token = generate_qr_token()
-    session = GuestSession(token_hash=hash_qr_token(token), sender_connection_id=sender_connection_id, expires_at=guest_session_expires_at())
+    session = GuestSession(
+        id=uuid.uuid4(),
+        token_hash=hash_qr_token(token),
+        sender_connection_id=sender_connection_id,
+        expires_at=guest_session_expires_at(),
+        status=SessionStatus.WAITING,
+    )
     db.add(session)
     await db.commit()
-    await db.refresh(session)
     return session, token
 
 
